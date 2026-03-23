@@ -201,6 +201,10 @@ cython_debug/
 .cursorignore
 .cursorindexingignore
 
+# Data (models and cache are large, config is tracked)
+data/*
+!data/config/
+
 # Marimo
 marimo/_static/
 marimo/_lsp/
