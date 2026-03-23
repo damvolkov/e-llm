@@ -58,6 +58,3 @@ class HuggingFaceAdapter:
                     downloaded += len(chunk)
                     if on_progress:
                         on_progress(downloaded, total)
-
-
-hf_adapter = HuggingFaceAdapter()

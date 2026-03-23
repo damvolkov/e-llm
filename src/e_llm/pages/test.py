@@ -7,11 +7,10 @@ from typing import TYPE_CHECKING
 from nicegui import ui
 
 if TYPE_CHECKING:
-    from e_llm.adapters.llamacpp import LlamaCppAdapter
-    from e_llm.operational.server import ServerManager
+    from e_llm.core.state import State
 
 
-def create(adapter: LlamaCppAdapter, manager: ServerManager) -> None:
+def create(s: State) -> None:
     """Build test chat with server guard and model info."""
     history: list[dict[str, str]] = []
 
@@ -41,7 +40,7 @@ def create(adapter: LlamaCppAdapter, manager: ServerManager) -> None:
         send_btn = ui.button(icon="send").props("round dense unelevated").style("background: var(--accent) !important")
 
     async def _handle_send() -> None:
-        if not manager.is_running:
+        if not s.server_manager.is_running:
             disabled_banner.visible = True
             return
 
@@ -61,7 +60,7 @@ def create(adapter: LlamaCppAdapter, manager: ServerManager) -> None:
 
         full_response = ""
         try:
-            async for token in adapter.stream_completion(messages=messages):
+            async for token in s.adapter.stream_completion(messages=messages):
                 full_response += token
                 response_md.set_content(full_response)
         except Exception as exc:
@@ -81,7 +80,7 @@ def create(adapter: LlamaCppAdapter, manager: ServerManager) -> None:
         disabled_banner.visible = False
 
     def _update_guard() -> None:
-        running = manager.is_running
+        running = s.server_manager.is_running
         msg_input.set_enabled(running)
         send_btn.set_enabled(running)
         disabled_banner.visible = not running

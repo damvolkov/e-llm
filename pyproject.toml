@@ -30,6 +30,8 @@ dependencies = [
     "aiofiles>=25.1.0",
     "psutil>=7.2.0",
     "huggingface-hub>=0.30.0",
+    "structlog",
+    "pydantic-ai",
 ]
 
 [dependency-groups]

@@ -1,0 +1,18 @@
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.3} }
+:root {
+    --bg: #0a0e14; --surface: #111820; --border: #1a3a4a;
+    --accent: #2196f3; --accent-dim: #1a6e8a; --text: #c8d6d8; --text-dim: #6b7f82;
+}
+body { background: var(--bg) !important; color: var(--text) !important; }
+.q-card { background: var(--surface) !important; border: 1px solid var(--border) !important; border-radius: 14px !important; }
+.q-header { background: var(--bg) !important; border-bottom: none !important; }
+.q-tab-panels, .q-tab-panel { background: transparent !important; }
+.q-tab-panel { padding: 16px 0 !important; }
+.q-expansion-item { border-radius: 10px !important; }
+.q-field--outlined .q-field__control { border-radius: 10px !important; }
+.q-btn { border-radius: 10px !important; }
+.q-separator { background: var(--border) !important; opacity: .35 !important; }
+.ellm-divider { background: var(--accent) !important; opacity: .6 !important; height: 3px !important; }
+.q-badge { border-radius: 6px !important; }
+.q-linear-progress { border-radius: 6px !important; }
+.q-chat-message { max-width: 85% !important; }

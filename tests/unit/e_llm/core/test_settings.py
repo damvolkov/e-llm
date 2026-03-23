@@ -15,12 +15,20 @@ async def test_settings_defaults() -> None:
     assert s.LLAMACPP_URL == "http://127.0.0.1:45150"
 
 
-async def test_settings_computed_paths() -> None:
+async def test_settings_data_paths() -> None:
     s = Settings(DATA_DIR=Path("/tmp/test-ellm"))
-    assert s.config_path == Path("/tmp/test-ellm/config/config.yaml")
     assert s.models_path == Path("/tmp/test-ellm/models")
-    assert s.cache_path == Path("/tmp/test-ellm/cache")
+    assert s.config_path == Path("/tmp/test-ellm/config/config.yaml")
+    assert s.data_path == Path("/tmp/test-ellm")
 
 
-async def test_settings_base_dir_is_path() -> None:
+async def test_settings_classvar_constants() -> None:
     assert isinstance(Settings.BASE_DIR, Path)
+    assert isinstance(Settings.ASSETS_PATH, Path)
+    assert Settings.API_NAME == "e-llm"
+    assert isinstance(Settings.API_VERSION, str)
+
+
+async def test_settings_computed_api_url() -> None:
+    s = Settings()
+    assert s.api_url == f"http://{s.GUI_HOST}:{s.GUI_PORT}"

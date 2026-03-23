@@ -1,58 +1,14 @@
+"""Hardware evaluation — detects CPU, RAM, GPU, disk in parallel."""
+
 import asyncio
 import contextlib
 import shutil
 import subprocess
-from dataclasses import dataclass
 from pathlib import Path
 
 import psutil
 
-##### DATA MODELS #####
-
-
-@dataclass(frozen=True, slots=True)
-class CpuInfo:
-    model: str
-    cores_physical: int
-    cores_logical: int
-    frequency_mhz: float
-
-
-@dataclass(frozen=True, slots=True)
-class RamInfo:
-    total_gb: float
-    available_gb: float
-    used_gb: float
-    usage_pct: float
-
-
-@dataclass(frozen=True, slots=True)
-class GpuInfo:
-    name: str
-    vram_total_mb: int
-    vram_used_mb: int
-    vram_free_mb: int
-    driver_version: str
-    cuda_version: str
-
-
-@dataclass(frozen=True, slots=True)
-class DiskInfo:
-    path: str
-    total_gb: float
-    free_gb: float
-    usage_pct: float
-
-
-@dataclass(frozen=True, slots=True)
-class SystemInfo:
-    cpu: CpuInfo
-    ram: RamInfo
-    gpu: GpuInfo | None
-    disk: DiskInfo
-
-
-##### EVALUATOR #####
+from e_llm.models.system import CpuInfo, DiskInfo, GpuInfo, RamInfo, SystemInfo
 
 
 class SystemEvaluator:
@@ -88,8 +44,8 @@ class SystemEvaluator:
                     break
         return CpuInfo(
             model=model,
-            cores_physical=psutil.cpu_count(logical=False) or 0,
-            cores_logical=psutil.cpu_count(logical=True) or 0,
+            n_cores_physical=psutil.cpu_count(logical=False) or 0,
+            n_cores_logical=psutil.cpu_count(logical=True) or 0,
             frequency_mhz=freq.current if freq else 0.0,
         )
 

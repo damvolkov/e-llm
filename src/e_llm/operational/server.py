@@ -1,13 +1,30 @@
+"""llama-server process lifecycle management."""
+
 import asyncio
 import signal
 import subprocess
 from pathlib import Path
 
+from e_llm.core.settings import settings as st
 from e_llm.models.server import ServerConfig
 
-_LLAMA_SERVER_BIN = "/app/llama-server"
-_INTERNAL_HOST = "127.0.0.1"
-_INTERNAL_PORT = 45150
+##### BOOLEAN FLAGS — config path → cli flag #####
+
+_TOGGLE_FLAGS: tuple[tuple[str, str, str], ...] = (
+    ("compute.flash_attn", "--flash-attn", "on"),
+    ("compute.fit", "--fit", "on"),
+    ("cache.no_kv_offload", "--no-kv-offload", ""),
+    ("compute.mlock", "--mlock", ""),
+    ("compute.no_mmap", "--no-mmap", ""),
+    ("template.jinja", "--jinja", ""),
+    ("template.no_context_shift", "--no-context-shift", ""),
+)
+
+
+def _resolve_flag(config: ServerConfig, path: str) -> bool:
+    """Resolve a dotted config path to its boolean value."""
+    section, field = path.split(".")
+    return bool(getattr(getattr(config, section), field))
 
 
 class ServerManager:
@@ -30,28 +47,23 @@ class ServerManager:
     def find_model(self, config: ServerConfig) -> Path | None:
         """Resolve model path from config or auto-detect first .gguf."""
         if config.model.path:
-            candidate = Path(config.model.path)
-            if candidate.exists():
-                return candidate
-            candidate = self._models_dir / config.model.path
-            if candidate.exists():
-                return candidate
+            for candidate in (Path(config.model.path), self._models_dir / config.model.path):
+                if candidate.exists():
+                    return candidate
 
         gguf_files = sorted(self._models_dir.glob("*.gguf"))
         return gguf_files[0] if gguf_files else None
 
     async def start(self, config: ServerConfig) -> bool:
-        """Start llama-server with the given config. Returns True on success."""
+        """Start llama-server. Returns True on success."""
         if self.is_running:
             await self.stop()
 
-        model_path = self.find_model(config)
-        if not model_path:
+        if not (model_path := self.find_model(config)):
             return False
 
-        cmd = self._sm_build_command(config, model_path)
         self._process = subprocess.Popen(
-            cmd,
+            self._sm_build_command(config, model_path),
             stdout=subprocess.DEVNULL,
             stderr=subprocess.PIPE,
         )
@@ -61,14 +73,12 @@ class ServerManager:
         """Gracefully stop the running server."""
         if not self.is_running:
             return
-
         self._process.send_signal(signal.SIGTERM)
         try:
             await asyncio.to_thread(self._process.wait, timeout=15)
         except subprocess.TimeoutExpired:
             self._process.kill()
             await asyncio.to_thread(self._process.wait, timeout=5)
-
         self._process = None
 
     async def restart(self, config: ServerConfig) -> bool:
@@ -77,17 +87,17 @@ class ServerManager:
         return await self.start(config)
 
     def _sm_build_command(self, config: ServerConfig, model: Path) -> list[str]:
-        """Build the llama-server command line from config."""
+        """Build the llama-server CLI from config — declarative flag mapping."""
         cmd = [
-            _LLAMA_SERVER_BIN,
+            st.LLAMA_SERVER_BIN,
             "--model",
             str(model),
             "--alias",
             config.server.alias,
             "--host",
-            _INTERNAL_HOST,
+            st.LLAMA_INTERNAL_HOST,
             "--port",
-            str(_INTERNAL_PORT),
+            str(st.LLAMA_INTERNAL_PORT),
             "--ctx-size",
             str(config.context.ctx_size),
             "--parallel",
@@ -116,33 +126,18 @@ class ServerManager:
             str(config.sampling.repeat_penalty),
         ]
 
-        if config.compute.flash_attn:
-            cmd.extend(["--flash-attn", "on"])
+        # Boolean toggle flags — declarative
+        for path, flag, value in _TOGGLE_FLAGS:
+            if _resolve_flag(config, path):
+                cmd.append(flag)
+                if value:
+                    cmd.append(value)
 
-        if config.compute.fit:
-            cmd.extend(["--fit", "on"])
-
-        if config.cache.no_kv_offload:
-            cmd.append("--no-kv-offload")
-
-        if config.compute.mlock:
-            cmd.append("--mlock")
-
-        if config.compute.no_mmap:
-            cmd.append("--no-mmap")
-
-        if config.template.jinja:
-            cmd.append("--jinja")
-
-        if config.template.no_context_shift:
-            cmd.append("--no-context-shift")
-
+        # Optional value flags
         if config.template.chat_template:
             cmd.extend(["--chat-template", config.template.chat_template])
-
         if config.model.n_gpu_layers != -1:
             cmd.extend(["--n-gpu-layers", str(config.model.n_gpu_layers)])
-
         if config.cache.defrag_thold > 0:
             cmd.extend(["--defrag-thold", str(config.cache.defrag_thold)])
 

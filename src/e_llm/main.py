@@ -1,151 +1,141 @@
 """e-llm — NiceGUI application entrypoint."""
 
-from pathlib import Path
-
 from nicegui import app, ui
 
+from e_llm.adapters.huggingface import HuggingFaceAdapter
 from e_llm.adapters.llamacpp import LlamaCppAdapter
+from e_llm.core.health import resolve_health
+from e_llm.core.logger import logger
 from e_llm.core.settings import settings as st
+from e_llm.core.state import State
 from e_llm.models.server import ServerConfig
 from e_llm.operational.server import ServerManager
+from e_llm.operational.system import SystemEvaluator
 from e_llm.pages.config import create as create_config
 from e_llm.pages.test import create as create_test
 
-_LOGO_PATH = Path(__file__).resolve().parent.parent.parent / "assets" / "e-llm-landscape-front.svg"
+state = State()
 
-_CSS = """
-@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.3} }
-:root {
-    --bg: #0a0e14; --surface: #111820; --border: #1a3a4a;
-    --accent: #2196f3; --accent-dim: #1a6e8a; --text: #c8d6d8; --text-dim: #6b7f82;
-}
-body { background: var(--bg) !important; color: var(--text) !important; }
-.q-card { background: var(--surface) !important; border: 1px solid var(--border) !important; border-radius: 14px !important; }
-.q-header { background: var(--bg) !important; border-bottom: 1px solid var(--border) !important; }
-.q-tab-panels, .q-tab-panel { background: transparent !important; }
-.q-tab-panel { padding: 16px 0 !important; }
-.q-expansion-item { border-radius: 10px !important; }
-.q-field--outlined .q-field__control { border-radius: 10px !important; }
-.q-btn { border-radius: 10px !important; }
-.q-separator { background: var(--border) !important; opacity: .35 !important; }
-.q-badge { border-radius: 6px !important; }
-.q-linear-progress { border-radius: 6px !important; }
-.q-chat-message { max-width: 85% !important; }
-.ellm-logo { height: 32px; }
-"""
-
-##### SINGLETONS #####
-
-adapter = LlamaCppAdapter(st.LLAMACPP_URL)
-server_manager = ServerManager(st.models_path)
+_THEME_CSS = (st.ASSETS_PATH / "theme.css").read_text() if (st.ASSETS_PATH / "theme.css").exists() else ""
+_FAVICON_LINK = '<link rel="icon" type="image/svg+xml" href="/assets/e-llm-icon-front.svg">'
 
 
-##### HEALTH #####
+def _load_logo() -> str:
+    """Load landscape SVG with explicit height, fallback to text."""
+    if st.LOGO_PATH.exists():
+        return st.LOGO_PATH.read_text().replace("<svg ", f'<svg height="{st.LOGO_HEIGHT}" ', 1)
+    return f'<span style="color:var(--accent);font-size:24px;font-weight:700">{st.API_NAME}</span>'
+
+
+##### SERVER — HEALTH + LIFECYCLE #####
 
 
 @app.get("/health")
-async def health() -> dict[str, object]:
+async def get_health() -> dict[str, object]:
     """Container health probe."""
-    server_health = await adapter.get_health()
+    server_health = await state.adapter.get_health()
     return {
         "status": "ok",
         "server": {
-            "running": server_manager.is_running,
-            "pid": server_manager.pid,
+            "running": state.server_manager.is_running,
+            "pid": state.server_manager.pid,
             "healthy": server_health is not None,
         },
     }
 
 
-##### LIFECYCLE #####
-
-
 @app.on_startup
-async def _on_startup() -> None:
+async def on_startup() -> None:
+    """Initialize adapters, evaluate hardware, auto-start server."""
+    state.adapter = LlamaCppAdapter(st.LLAMACPP_URL)
+    state.hf_adapter = HuggingFaceAdapter()
+    state.server_manager = ServerManager(st.models_path)
+    state.system_info = await SystemEvaluator(st.data_path).evaluate()
+
+    logger.info("adapters initialized", step="START", url=st.LLAMACPP_URL)
+    logger.info(
+        "system evaluated",
+        step="OK",
+        cpu=state.system_info.cpu.model,
+        ram=f"{state.system_info.ram.total_gb}GB",
+        gpu=state.system_info.gpu.name if state.system_info.gpu else "none",
+    )
+
     config = ServerConfig.from_yaml(st.config_path)
-    if server_manager.find_model(config):
-        started = await server_manager.start(config)
-        print(f"[e-llm] llama-server {'started' if started else 'failed'}")
-    else:
-        print("[e-llm] no model found — download via GUI")
+    if not (model := state.server_manager.find_model(config)):
+        logger.info("no model found — download via GUI", step="WARN")
+        return
+    started = await state.server_manager.start(config)
+    logger.info("llama-server", step="OK" if started else "ERROR", model=model.name)
 
 
 @app.on_shutdown
-async def _on_shutdown() -> None:
-    await server_manager.stop()
+async def on_shutdown() -> None:
+    """Graceful shutdown."""
+    await state.server_manager.stop()
+    logger.info("shutdown complete", step="STOP")
 
 
-##### GUI #####
-
-
-def _load_logo() -> str:
-    if _LOGO_PATH.exists():
-        return _LOGO_PATH.read_text()
-    return '<span style="color:var(--accent);font-size:24px;font-weight:700">e-llm</span>'
+##### CLIENT — GUI #####
 
 
 @ui.page("/")
 async def index() -> None:
     """Main page — Configuration (default) + Test tab."""
     ui.dark_mode(True)
-    ui.add_head_html(f"<style>{_CSS}</style>")
-
-    with ui.header().classes("items-center justify-between px-6 py-2"):
-        ui.html(_load_logo()).classes("ellm-logo")
-
-        with ui.tabs().classes("self-center") as tabs:
-            ui.tab("config", icon="tune", label="Configuration")
-            ui.tab("test", icon="science", label="Test")
-
-        with ui.row().classes("items-center gap-2"):
-            health_dot = ui.icon("circle", color="red").classes("text-lg")
-            health_label = ui.label("Stopped").classes("text-caption").style("color: var(--text-dim)")
+    ui.add_head_html(f"<style>{_THEME_CSS}</style>")
+    ui.add_head_html(_FAVICON_LINK)
 
     with (
-        ui.column().classes("w-full max-w-7xl mx-auto px-4 py-2 flex-grow"),
+        ui.header().classes("items-center justify-center px-6 py-3 no-wrap"),
+        ui.column().classes("w-full max-w-7xl items-center gap-2"),
+    ):
+        ui.html(_load_logo())
+
+        with ui.row().classes("w-full items-center justify-center gap-4 mt-1"):
+            with (
+                ui.tabs()
+                .props("inline-label no-caps indicator-color=primary")
+                .classes("self-center text-subtitle1") as tabs
+            ):
+                ui.tab("config", icon="tune", label="Configuration")
+                ui.tab("test", icon="science", label="Test")
+
+            with ui.row().classes("items-center gap-2 absolute-right pr-6"):
+                health_dot = ui.icon("circle", color="red").classes("text-lg")
+                health_label = ui.label("Stopped").classes("text-caption").style("color: var(--text-dim)")
+
+    ui.separator().classes("ellm-divider")
+
+    with (
+        ui.column().classes("w-full max-w-7xl mx-auto px-4 py-4 flex-grow"),
         ui.tab_panels(tabs, value="config").classes("w-full"),
     ):
         with ui.tab_panel("config"):
-            create_config(server_manager, adapter)
+            create_config(state)
         with ui.tab_panel("test"):
-            create_test(adapter, server_manager)
+            create_test(state)
 
-    async def _check_health() -> None:
-        running = server_manager.is_running
-        health_data = await adapter.get_health() if running else None
-        status = health_data.get("status", "") if health_data else ""
+    async def _poll_health() -> None:
+        hs = await resolve_health(state)
+        health_dot.props(f'color="{hs.color}"')
+        health_dot.style("animation: pulse 1.4s ease-in-out infinite" if hs.pulsing else "")
+        health_label.text = hs.label
+        health_dot.tooltip(hs.tooltip)
 
-        if not running:
-            config = ServerConfig.from_yaml(st.config_path)
-            if server_manager.find_model(config):
-                await server_manager.start(config)
-                _set_state("orange", True, "Starting...", "Process launched — loading model")
-                return
-            _set_state("red", False, "Stopped", "No model loaded.\nDownload one in Configuration → Models.")
-        elif status == "ok":
-            model = health_data.get("model_path", "")
-            name = model.rsplit("/", 1)[-1] if model else "unknown"
-            _set_state("green", False, "Ready", f"Model: {name}\nPID: {server_manager.pid}")
-        elif status == "loading model":
-            _set_state("orange", True, "Loading...", f"PID: {server_manager.pid}\nLoading model into memory")
-        else:
-            _set_state("orange", True, "Starting...", f"PID: {server_manager.pid}\nWaiting for server")
+    ui.timer(st.HEALTH_POLL_INTERVAL, _poll_health)
 
-    def _set_state(color: str, pulsing: bool, label: str, tip: str) -> None:
-        health_dot.props(f'color="{color}"')
-        health_dot.style("animation: pulse 1.4s ease-in-out infinite" if pulsing else "")
-        health_label.text = label
-        health_dot.tooltip(tip)
 
-    ui.timer(3.0, _check_health)
+##### STATIC + RUN #####
 
+app.add_static_files("/assets", str(st.ASSETS_PATH))
 
 if __name__ in {"__main__", "__mp_main__"}:
     ui.run(
-        title="e-llm",
+        title=st.API_NAME,
         host=st.GUI_HOST,
         port=st.GUI_PORT,
         reload=st.DEBUG,
         dark=True,
-        favicon="🤖",
+        favicon="/assets/e-llm-icon-front.svg",
     )
