@@ -1,0 +1,34 @@
+server:
+  host: 0.0.0.0
+  port: 45150
+  alias: default
+model:
+  path: olmoe-1b-7b-0924-instruct-q2_k.gguf
+  n_gpu_layers: -1
+context:
+  ctx_size: 8192
+  parallel: 1
+  batch_size: 2048
+  ubatch_size: 512
+cache:
+  type_k: f16
+  type_v: f16
+  no_kv_offload: false
+  defrag_thold: 0.1
+compute:
+  threads: 4
+  threads_batch: 4
+  flash_attn: true
+  fit: true
+  mlock: false
+  no_mmap: false
+sampling:
+  temp: 0.7
+  top_p: 0.95
+  top_k: 40
+  min_p: 0.05
+  repeat_penalty: 1.0
+template:
+  jinja: true
+  no_context_shift: false
+  chat_template: ''

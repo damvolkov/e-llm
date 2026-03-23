@@ -1,0 +1,117 @@
+[build-system]
+requires = ["hatchling>=1.24", "uv-dynamic-versioning>=0.7.0"]
+build-backend = "hatchling.build"
+
+[project]
+name = "e-llm"
+dynamic = ["version"]
+description = "Self-contained LLM inference server with GUI — llama.cpp + NiceGUI + nginx in a single Docker container"
+readme = "README.md"
+requires-python = ">=3.13"
+license = { text = "MIT" }
+authors = [{ name = "Damien", email = "damvolkovv@gmail.com" }]
+keywords = ["llama-cpp", "llm", "gguf", "nicegui", "inference", "hybrid", "gpu", "cpu"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Framework :: AsyncIO",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+    "Typing :: Typed",
+]
+
+dependencies = [
+    "nicegui>=3.9.0",
+    "httpx>=0.28.0",
+    "orjson>=3.10.0",
+    "pydantic-settings[yaml]>=2.13.1",
+    "aiofiles>=25.1.0",
+    "psutil>=7.2.0",
+    "huggingface-hub>=0.30.0",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=8.4.0",
+    "pytest-asyncio>=1.0.0",
+    "pytest-cov>=7.0.0",
+    "pytest-mock>=3.14.0",
+    "pytest-xdist>=3.5.0",
+    "pytest-rerunfailures>=15.0",
+    "pytest-httpserver>=1.1.5",
+    "ruff>=0.14.0",
+    "ty>=0.0.5",
+    "pre-commit>=4.4.0",
+    "respx>=0.22.0",
+    "polyfactory>=3.3.0",
+    "openai>=2.28.0",
+]
+
+[project.urls]
+Repository = "https://github.com/damvolkov/e-llm"
+
+[tool.hatch.version]
+source = "uv-dynamic-versioning"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/e_llm"]
+
+[tool.uv-dynamic-versioning]
+vcs = "git"
+style = "pep440"
+bump = true
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "session"
+asyncio_default_test_loop_scope = "session"
+testpaths = ["tests"]
+filterwarnings = ["ignore::DeprecationWarning"]
+markers = [
+    "slow: integration tests requiring a running server",
+]
+addopts = "--import-mode=importlib"
+
+[tool.ruff]
+line-length = 120
+target-version = "py313"
+src = ["src"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "N", "W", "UP", "B", "C4", "SIM"]
+ignore = ["E501"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["e_llm"]
+
+[tool.ty.environment]
+python-version = "3.13"
+root = ["./src/e_llm"]
+extra-paths = ["."]
+
+[tool.ty.rules]
+possibly-unresolved-reference = "error"
+unresolved-import = "error"
+
+[tool.coverage.run]
+source = ["e_llm"]
+branch = true
+omit = [
+    "src/e_llm/main.py",
+    "src/e_llm/pages/*",
+    "src/e_llm/adapters/huggingface.py",
+    "src/e_llm/operational/models.py",
+]
+
+[tool.coverage.report]
+fail_under = 90
+show_missing = true
+exclude_lines = [
+    "pragma: no cover",
+    "if TYPE_CHECKING:",
+    "raise NotImplementedError",
+    "@abstractmethod",
+    "@overload",
+]

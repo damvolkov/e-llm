@@ -1,0 +1,19 @@
+services:
+
+  ellm:
+    build: .
+    container_name: ellm
+    hostname: ellm
+    restart: unless-stopped
+    ports:
+      - "${ELLM_PORT:-45100}:80"
+    volumes:
+      - ./data:/data
+      - ./src:/opt/ellm/src
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu, compute, utility]
