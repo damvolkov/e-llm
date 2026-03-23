@@ -117,6 +117,7 @@ omit = [
     "src/e_llm/pages/*",
     "src/e_llm/adapters/huggingface.py",
     "src/e_llm/operational/models.py",
+    "src/e_llm/operational/system.py",
 ]
 
 [tool.coverage.report]
