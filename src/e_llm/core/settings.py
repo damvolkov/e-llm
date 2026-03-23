@@ -66,7 +66,7 @@ class Settings(BaseSettings):
 
     LLAMA_SERVER_BIN: ClassVar[str] = "/app/llama-server"
     LLAMA_INTERNAL_HOST: ClassVar[str] = "127.0.0.1"
-    LLAMA_INTERNAL_PORT: ClassVar[int] = 45150
+    LLAMA_INTERNAL_PORT: ClassVar[int] = 45151
     HEALTH_POLL_INTERVAL: ClassVar[float] = 3.0
 
     ##### RUNTIME SETTINGS (env + YAML) #####
@@ -74,7 +74,7 @@ class Settings(BaseSettings):
     DEBUG: bool = True
     GUI_HOST: str = "0.0.0.0"
     GUI_PORT: int = 8080
-    LLAMACPP_URL: str = "http://127.0.0.1:45150"
+    LLAMACPP_URL: str = "http://127.0.0.1:45151"
     DATA_DIR: Path = BASE_DIR / "data"
 
     @computed_field

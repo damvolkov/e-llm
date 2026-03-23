@@ -32,7 +32,7 @@ ENV PATH="/opt/ellm/.venv/bin:$PATH" \
     PYTHONPATH="/opt/ellm/src" \
     LD_LIBRARY_PATH="/app:${LD_LIBRARY_PATH}"
 
-EXPOSE 80
+EXPOSE 80 45150
 
 HEALTHCHECK --interval=30s --timeout=10s --retries=10 --start-period=300s \
     CMD curl -f http://localhost:80/health || exit 1

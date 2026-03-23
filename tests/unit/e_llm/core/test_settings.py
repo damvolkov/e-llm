@@ -12,7 +12,7 @@ async def test_settings_defaults() -> None:
     assert s.DEBUG is True
     assert s.GUI_HOST == "0.0.0.0"
     assert s.GUI_PORT == 8080
-    assert s.LLAMACPP_URL == "http://127.0.0.1:45150"
+    assert f"http://127.0.0.1:{Settings.LLAMA_INTERNAL_PORT}" == s.LLAMACPP_URL
 
 
 async def test_settings_data_paths() -> None:
