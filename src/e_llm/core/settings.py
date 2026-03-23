@@ -5,6 +5,7 @@ from typing import ClassVar
 
 from pydantic import computed_field
 from pydantic_settings import BaseSettings, SettingsConfigDict, YamlConfigSettingsSource
+from pydantic_settings.main import PydanticBaseSettingsSource
 
 
 def _read_pyproject(base_dir: Path) -> dict:
@@ -97,13 +98,16 @@ class Settings(BaseSettings):
         return f"http://{self.GUI_HOST}:{self.GUI_PORT}"
 
     @classmethod
-    def settings_customise_sources(cls, settings_cls, **kwargs):  # noqa: N805
+    def settings_customise_sources(  # noqa: N805
+        cls,
+        settings_cls: type[BaseSettings],
+        init_settings: PydanticBaseSettingsSource,
+        env_settings: PydanticBaseSettingsSource,
+        dotenv_settings: PydanticBaseSettingsSource,
+        file_secret_settings: PydanticBaseSettingsSource,
+    ) -> tuple[PydanticBaseSettingsSource, ...]:
         """Env vars > YAML > defaults."""
-        return (
-            kwargs["init_settings"],
-            kwargs["env_settings"],
-            YamlConfigSettingsSource(settings_cls),
-        )
+        return (init_settings, env_settings, YamlConfigSettingsSource(settings_cls))
 
 
 settings = Settings()

@@ -34,12 +34,12 @@ async def resolve_health(s: State) -> HealthState:
             return HealthState("orange", True, "Starting...", "Process launched — loading model")
         return HealthState("red", False, "Stopped", "No model loaded.\nDownload one in Configuration → Models.")
 
-    health_data = await s.adapter.get_health()
-    status = health_data.get("status", "") if health_data else ""
+    health_data = await s.adapter.get_health() or {}
+    status = health_data.get("status", "")
 
     match status:
         case "ok":
-            model = health_data.get("model_path", "")
+            model = str(health_data.get("model_path", ""))
             name = model.rsplit("/", 1)[-1] if model else "unknown"
             return HealthState("green", False, "Ready", f"Model: {name}\nPID: {mgr.pid}")
         case "loading model":

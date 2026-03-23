@@ -40,6 +40,7 @@ async def test_get_health_loading_model(httpserver: HTTPServer) -> None:
     )
     adapter = LlamaCppAdapter(httpserver.url_for(""))
     result = await adapter.get_health()
+    assert result is not None
     assert result["status"] == "loading model"
 
 

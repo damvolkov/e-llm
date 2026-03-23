@@ -1,5 +1,7 @@
 """Tests for model discovery (HuggingFace search + quant extraction)."""
 
+import dataclasses
+
 import pytest
 
 from e_llm.operational.models import GGUFFile, ModelResult, _extract_quant
@@ -48,8 +50,8 @@ async def test_gguf_file_size_gb() -> None:
 
 async def test_gguf_file_frozen() -> None:
     f = GGUFFile(filename="model.gguf", size_bytes=0)
-    with pytest.raises(AttributeError):
-        f.filename = "other.gguf"
+    with pytest.raises(dataclasses.FrozenInstanceError):
+        f.filename = "other.gguf"  # type: ignore[misc]
 
 
 ##### MODEL RESULT #####

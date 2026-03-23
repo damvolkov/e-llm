@@ -118,12 +118,12 @@ def list_quants(repo_id: str) -> list[GGUFFile]:
     return sorted(
         (
             GGUFFile(
-                filename=f.rfilename,
-                size_bytes=f.size or 0,
-                quant=_extract_quant(f.rfilename),
+                filename=str(f.rfilename),
+                size_bytes=getattr(f, "size", 0) or 0,
+                quant=_extract_quant(str(f.rfilename)),
             )
             for f in tree
-            if hasattr(f, "rfilename") and f.rfilename.endswith(".gguf")
+            if hasattr(f, "rfilename") and str(f.rfilename).endswith(".gguf")
         ),
         key=lambda f: f.size_bytes,
     )

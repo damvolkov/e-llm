@@ -27,7 +27,7 @@ from e_llm.operational.agents import (
     run_ping,
     run_tuner,
 )
-from e_llm.operational.models import GGUFFile, list_quants, search_models
+from e_llm.operational.models import GGUFFile, ModelResult, list_quants, search_models
 from e_llm.operational.system import SystemEvaluator
 
 if TYPE_CHECKING:
@@ -160,7 +160,7 @@ def create(s: State) -> None:
 
         search_input.on_value_change(lambda _e: _on_value_change())
 
-        async def _select_repo(result: object) -> None:
+        async def _select_repo(result: ModelResult) -> None:
             quants_container.clear()
             with quants_container:
                 ui.spinner(size="sm")

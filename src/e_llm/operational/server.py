@@ -42,7 +42,8 @@ class ServerManager:
 
     @property
     def pid(self) -> int | None:
-        return self._process.pid if self.is_running else None
+        proc = self._process
+        return proc.pid if proc is not None and proc.poll() is None else None
 
     def find_model(self, config: ServerConfig) -> Path | None:
         """Resolve model path from config or auto-detect first .gguf."""
@@ -71,14 +72,15 @@ class ServerManager:
 
     async def stop(self) -> None:
         """Gracefully stop the running server."""
-        if not self.is_running:
+        proc = self._process
+        if proc is None or proc.poll() is not None:
             return
-        self._process.send_signal(signal.SIGTERM)
+        proc.send_signal(signal.SIGTERM)
         try:
-            await asyncio.to_thread(self._process.wait, timeout=15)
+            await asyncio.to_thread(proc.wait, timeout=15)
         except subprocess.TimeoutExpired:
-            self._process.kill()
-            await asyncio.to_thread(self._process.wait, timeout=5)
+            proc.kill()
+            await asyncio.to_thread(proc.wait, timeout=5)
         self._process = None
 
     async def restart(self, config: ServerConfig) -> bool:

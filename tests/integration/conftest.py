@@ -1,5 +1,7 @@
 """Integration test fixtures — requires a running e-llm container."""
 
+from collections.abc import AsyncGenerator
+
 import httpx
 import pytest
 
@@ -11,7 +13,7 @@ def base_url() -> str:
 
 
 @pytest.fixture(scope="session")
-async def http_client(base_url: str) -> httpx.AsyncClient:
+async def http_client(base_url: str) -> AsyncGenerator[httpx.AsyncClient]:
     """Shared async HTTP client for integration tests."""
     async with httpx.AsyncClient(base_url=base_url, timeout=30.0) as client:
         yield client

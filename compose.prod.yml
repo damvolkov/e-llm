@@ -1,0 +1,40 @@
+services:
+  ellm:
+    image: ghcr.io/damvolkov/e-llm:latest
+    container_name: ellm
+    hostname: ellm
+    restart: unless-stopped
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu, compute, utility]
+    labels:
+      e-core.category: "ai"
+      e-core.port: "45150"
+    ports:
+      # 45150 — e-llm GUI + OpenAI API (ai)
+      - "${ELLM_PORT:-45150}:80"
+    volumes:
+      - models:/data/models
+      - ./config/ellm:/data/config:ro
+    environment:
+      DATA_DIR: /data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:80/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 10
+      start_period: 300s
+    networks:
+      - e-core
+
+volumes:
+  models:
+    driver: local
+
+networks:
+  e-core:
+    external: true

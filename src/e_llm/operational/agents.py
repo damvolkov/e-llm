@@ -153,7 +153,7 @@ async def run_ping(provider: str, model_name: str, base_url: str, api_key: str) 
 ##### TUNER #####
 
 
-def build_tuner(provider: str, model_name: str, base_url: str, api_key: str) -> Agent[None, TunerOutput]:
+def build_tuner(provider: str, model_name: str, base_url: str, api_key: str) -> Agent:
     """Create a Tuner agent with the correct provider and model."""
     model = _build_model(provider, model_name, base_url, api_key)
     return Agent(
@@ -182,4 +182,5 @@ async def run_tuner(
     if input_data.additional_prompt:
         prompt += f"\n\nUser context:\n{input_data.additional_prompt}"
     result = await tuner.run(prompt)
-    return result.output
+    output: TunerOutput = result.output  # type: ignore[assignment]
+    return output
