@@ -11,6 +11,8 @@ services:
             - driver: nvidia
               count: 1
               capabilities: [gpu, compute, utility]
+    cap_add:
+      - IPC_LOCK
     labels:
       e-core.category: "ai"
       e-core.port: "45150"

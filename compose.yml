@@ -5,6 +5,8 @@ services:
     container_name: ellm
     hostname: ellm
     restart: unless-stopped
+    cap_add:
+      - IPC_LOCK
     ports:
       - "${ELLM_PORT:-45100}:80"
     environment:

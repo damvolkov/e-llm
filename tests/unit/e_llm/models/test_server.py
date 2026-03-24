@@ -48,7 +48,7 @@ async def test_compute_spec_defaults() -> None:
     spec = ComputeSpec()
     assert spec.flash_attn is True
     assert spec.fit is True
-    assert spec.mlock is False
+    assert spec.mlock is True
 
 
 async def test_sampling_spec_defaults() -> None:

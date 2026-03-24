@@ -58,7 +58,7 @@ class ComputeSpec(BaseModel):
     threads_batch: int = 4
     flash_attn: bool = True
     fit: bool = True
-    mlock: bool = False
+    mlock: bool = True
     no_mmap: bool = False
 
 
