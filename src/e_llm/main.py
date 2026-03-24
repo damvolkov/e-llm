@@ -1,5 +1,8 @@
 """e-llm — NiceGUI application entrypoint."""
 
+import asyncio
+from collections.abc import Iterable
+
 from nicegui import app, ui
 
 from e_llm.adapters.huggingface import HuggingFaceAdapter
@@ -9,12 +12,14 @@ from e_llm.core.logger import logger
 from e_llm.core.settings import settings as st
 from e_llm.core.state import State
 from e_llm.models.server import ServerConfig
+from e_llm.operational.monitor import SystemMonitor
 from e_llm.operational.server import ServerManager
 from e_llm.operational.system import SystemEvaluator
 from e_llm.pages.config import create as create_config
 from e_llm.pages.test import create as create_test
 
 state = State()
+monitor = SystemMonitor()
 
 _THEME_CSS = (st.ASSETS_PATH / "theme.css").read_text() if (st.ASSETS_PATH / "theme.css").exists() else ""
 _FAVICON_LINK = '<link rel="icon" type="image/svg+xml" href="/assets/e-llm-icon-front.svg">'
@@ -78,7 +83,36 @@ async def on_startup() -> None:
 async def on_shutdown() -> None:
     """Graceful shutdown."""
     await state.server_manager.stop()
+    monitor.shutdown()
     logger.info("shutdown complete", step="STOP")
+
+
+##### MONITOR HELPERS #####
+
+
+_AREA_ALPHA: dict[str, str] = {
+    "#4caf50": "rgba(76,175,80,0.10)",
+    "#ff9800": "rgba(255,152,0,0.10)",
+    "#f44336": "rgba(244,67,54,0.10)",
+}
+
+
+def _update_row(
+    row: dict,
+    pct: float,
+    history: Iterable[float],
+    custom_label: str | None = None,
+) -> None:
+    """Update a single monitor row — label, bar, sparkline."""
+    row["pct"].text = custom_label or f"{pct:.0f}%"
+    row["bar"].value = pct / 100.0
+    color = "#4caf50" if pct < 60 else "#ff9800" if pct < 85 else "#f44336"
+    row["bar"].props(f'color="{color}"')
+    series = row["spark"].options["series"][0]
+    series["data"] = list(history)
+    series["lineStyle"]["color"] = color
+    series["areaStyle"]["color"] = _AREA_ALPHA.get(color, "rgba(33,150,243,0.10)")
+    row["spark"].update()
 
 
 ##### CLIENT — GUI #####
@@ -107,9 +141,59 @@ async def index() -> None:
                 ui.tab("config", icon="tune", label="Configuration")
                 ui.tab("test", icon="science", label="Test")
 
-            with ui.row().classes("items-center gap-2 absolute-right pr-6"):
-                health_dot = ui.icon("circle", color="red").classes("text-lg")
-                health_label = ui.label("Stopped").classes("text-caption").style("color: var(--text-dim)")
+            with (
+                ui.card()
+                .classes("absolute-right mr-6")
+                .style(
+                    "padding: 8px 14px; min-width: 220px;"
+                    "background: var(--surface) !important;"
+                    "border: 1px solid var(--border) !important;"
+                    "border-radius: 10px !important;"
+                ),
+            ):
+                with ui.row().classes("items-center gap-2 mb-1"):
+                    health_dot = ui.icon("circle", color="red").classes("text-sm")
+                    health_label = (
+                        ui.label("Stopped")
+                        .classes("text-caption text-weight-medium")
+                        .style("color: var(--text-dim); font-size: 11px")
+                    )
+
+                mon_rows: dict[str, dict] = {}
+                for key, _icon, label in [
+                    ("vram", "memory", "VRAM"),
+                    ("gpu", "developer_board", "GPU"),
+                    ("cpu", "memory", "CPU"),
+                    ("ram", "storage", "RAM"),
+                ]:
+                    with ui.row().classes("w-full items-center gap-2").style("height: 18px"):
+                        ui.label(label).style("font-size: 9px; color: var(--text-dim); width: 30px; font-weight: 600")
+                        pct_label = ui.label("—").style(
+                            "font-size: 9px; color: var(--text); width: 32px; text-align: right"
+                        )
+                        bar = (
+                            ui.linear_progress(value=0, show_value=False)
+                            .style("height: 4px; flex: 1; border-radius: 2px")
+                            .props("instant-feedback")
+                        )
+                        spark = ui.echart(
+                            {
+                                "grid": {"top": 0, "bottom": 0, "left": 0, "right": 0},
+                                "xAxis": {"show": False, "type": "category"},
+                                "yAxis": {"show": False, "type": "value", "min": 0, "max": 100},
+                                "series": [
+                                    {
+                                        "type": "line",
+                                        "data": [],
+                                        "smooth": True,
+                                        "symbol": "none",
+                                        "lineStyle": {"width": 1.2, "color": "#2196f3"},
+                                        "areaStyle": {"color": "rgba(33,150,243,0.10)"},
+                                    }
+                                ],
+                            }
+                        ).style("width: 50px; height: 16px")
+                    mon_rows[key] = {"pct": pct_label, "bar": bar, "spark": spark}
 
     ui.separator().classes("ellm-divider")
 
@@ -129,7 +213,24 @@ async def index() -> None:
         health_label.text = hs.label
         health_dot.tooltip(hs.tooltip)
 
+    async def _poll_monitor() -> None:
+        snap = await asyncio.to_thread(monitor.poll)
+        _update_row(mon_rows["cpu"], snap.cpu_pct, monitor.cpu_history)
+        _update_row(mon_rows["ram"], snap.ram_pct, monitor.ram_history)
+        if snap.gpu_available:
+            _update_row(mon_rows["gpu"], snap.gpu_util_pct, monitor.gpu_util_history)
+            _update_row(
+                mon_rows["vram"],
+                snap.vram_pct,
+                monitor.vram_history,
+                f"{snap.vram_used_mb // 1024}/{snap.vram_total_mb // 1024}G",
+            )
+        else:
+            for key in ("gpu", "vram"):
+                mon_rows[key]["pct"].text = "n/a"
+
     ui.timer(st.HEALTH_POLL_INTERVAL, _poll_health)
+    ui.timer(2.0, _poll_monitor)
 
 
 ##### STATIC + RUN #####

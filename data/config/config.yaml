@@ -7,7 +7,7 @@ model:
   n_gpu_layers: -1
 context:
   ctx_size: 65536
-  parallel: 2
+  parallel: 1
   batch_size: 2048
   ubatch_size: 512
 cache:
@@ -20,7 +20,7 @@ compute:
   threads_batch: 26
   flash_attn: true
   fit: true
-  mlock: false
+  mlock: true
   no_mmap: false
 sampling:
   temp: 1.0
@@ -30,5 +30,5 @@ sampling:
   repeat_penalty: 1.0
 template:
   jinja: true
-  no_context_shift: true
+  no_context_shift: false
   chat_template: ''

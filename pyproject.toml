@@ -32,6 +32,7 @@ dependencies = [
     "huggingface-hub>=0.30.0",
     "structlog",
     "pydantic-ai",
+    "pynvml>=13.0.1",
 ]
 
 [dependency-groups]
