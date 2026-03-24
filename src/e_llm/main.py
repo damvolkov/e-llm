@@ -18,6 +18,11 @@ state = State()
 
 _THEME_CSS = (st.ASSETS_PATH / "theme.css").read_text() if (st.ASSETS_PATH / "theme.css").exists() else ""
 _FAVICON_LINK = '<link rel="icon" type="image/svg+xml" href="/assets/e-llm-icon-front.svg">'
+_FONT_LINK = (
+    '<link rel="preconnect" href="https://fonts.googleapis.com">'
+    '<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>'
+    '<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,100..800;1,100..800&display=swap" rel="stylesheet">'
+)
 
 
 def _load_logo() -> str:
@@ -83,6 +88,7 @@ async def on_shutdown() -> None:
 async def index() -> None:
     """Main page — Configuration (default) + Test tab."""
     ui.dark_mode(True)
+    ui.add_head_html(_FONT_LINK)
     ui.add_head_html(f"<style>{_THEME_CSS}</style>")
     ui.add_head_html(_FAVICON_LINK)
 
