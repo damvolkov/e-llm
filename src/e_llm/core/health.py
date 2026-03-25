@@ -24,15 +24,20 @@ class HealthState:
 
 async def resolve_health(s: State) -> HealthState:
     """Evaluate server status and return the appropriate visual state."""
-    mgr = s.server_manager
-    running = mgr.is_running
+    ctrl = s.controller
+    mgr = ctrl.manager
 
-    if not running:
+    if not ctrl.enabled:
+        return HealthState("grey", False, "Disabled", "Server disabled by user.\nClick power button to enable.")
+
+    if not mgr.is_running:
         config = ServerConfig.from_yaml(st.config_path)
-        if mgr.find_model(config):
-            await mgr.start(config)
-            return HealthState("orange", True, "Starting...", "Process launched — loading model")
-        return HealthState("red", False, "Stopped", "No model loaded.\nDownload one in Configuration → Models.")
+        if not mgr.find_model(config):
+            return HealthState("red", False, "Stopped", "No model loaded.\nDownload one in Configuration → Models.")
+        check = await ctrl.enable()
+        if not check.available:
+            return HealthState("red", False, "Blocked", check.reason)
+        return HealthState("orange", True, "Starting...", "Process launched — loading model")
 
     health_data = await s.adapter.get_health() or {}
     status = health_data.get("status", "")

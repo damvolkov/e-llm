@@ -601,7 +601,7 @@ def create(s: State) -> None:
             new_config.to_yaml(st.config_path)
             save_status.text = "Saved — restarting server..."
             save_btn.props(add="loading")
-            started = await s.server_manager.restart(new_config)
+            started = await s.controller.restart(new_config)
             save_btn.props(remove="loading")
             save_status.text = (
                 "Server launched — check header indicator" if started else "Failed to start — check model"

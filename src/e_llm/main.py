@@ -12,6 +12,7 @@ from e_llm.core.logger import logger
 from e_llm.core.settings import settings as st
 from e_llm.core.state import State
 from e_llm.models.server import ServerConfig
+from e_llm.operational.controller import ServerController
 from e_llm.operational.monitor import SystemMonitor
 from e_llm.operational.server import ServerManager
 from e_llm.operational.system import SystemEvaluator
@@ -50,6 +51,7 @@ async def get_health() -> dict[str, object]:
             "running": state.server_manager.is_running,
             "pid": state.server_manager.pid,
             "healthy": server_health is not None,
+            "enabled": state.controller.enabled,
         },
     }
 
@@ -60,6 +62,7 @@ async def on_startup() -> None:
     state.adapter = LlamaCppAdapter(st.LLAMACPP_URL)
     state.hf_adapter = HuggingFaceAdapter()
     state.server_manager = ServerManager(st.models_path)
+    state.controller = ServerController(state.server_manager)
     state.system_info = await SystemEvaluator(st.data_path).evaluate()
 
     logger.info("adapters initialized", step="START", url=st.LLAMACPP_URL)
@@ -75,8 +78,11 @@ async def on_startup() -> None:
     if not (model := state.server_manager.find_model(config)):
         logger.info("no model found — download via GUI", step="WARN")
         return
-    started = await state.server_manager.start(config)
-    logger.info("llama-server", step="OK" if started else "ERROR", model=model.name)
+    check = await state.controller.enable()
+    if check.available:
+        logger.info("llama-server", step="OK", model=model.name)
+    else:
+        logger.info("llama-server blocked", step="WARN", reason=check.reason)
 
 
 @app.on_shutdown
@@ -149,6 +155,12 @@ async def index() -> None:
                         .classes("text-caption text-weight-medium")
                         .style("color: var(--text-dim); font-size: 11px")
                     )
+                    power_btn = (
+                        ui.button(icon="power_settings_new")
+                        .props('flat round dense size="xs" color="positive"')
+                        .style("min-width: 0; padding: 4px")
+                        .tooltip("Server enabled — click to disable")
+                    )
 
                 mon_rows: dict[str, dict] = {}
                 for key, _icon, label in [
@@ -206,12 +218,30 @@ async def index() -> None:
         with ui.tab_panel("test"):
             create_test(state)
 
+    def _sync_power_btn() -> None:
+        enabled = state.controller.enabled
+        color = "positive" if enabled else "negative"
+        tip = "Server enabled — click to disable" if enabled else "Server disabled — click to enable"
+        power_btn.props(f'color="{color}"')
+        power_btn.tooltip(tip)
+
+    async def _toggle_server() -> None:
+        power_btn.props(add="loading")
+        result = await state.controller.toggle()
+        power_btn.props(remove="loading")
+        if result and not result.available:
+            ui.notify(result.reason, type="warning", position="top")
+        _sync_power_btn()
+
+    power_btn.on_click(_toggle_server)
+
     async def _poll_health() -> None:
         hs = await resolve_health(state)
         health_dot.props(f'color="{hs.color}"')
         health_dot.style("animation: pulse 1.4s ease-in-out infinite" if hs.pulsing else "")
         health_label.text = hs.label
         health_dot.tooltip(hs.tooltip)
+        _sync_power_btn()
 
     async def _poll_monitor() -> None:
         snap = await asyncio.to_thread(monitor.poll)
