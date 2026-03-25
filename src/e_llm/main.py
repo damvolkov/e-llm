@@ -127,72 +127,73 @@ async def index() -> None:
     ui.add_head_html(_FAVICON_LINK)
 
     with (
-        ui.header().classes("items-center justify-center px-6 py-3 no-wrap relative"),
+        ui.header().classes("items-center justify-center px-6 py-6 no-wrap"),
         ui.column().classes("w-full max-w-7xl items-center gap-2"),
     ):
-        ui.html(_load_logo())
+        with ui.row().classes("w-full items-center justify-between"):
+            ui.element("div").classes("flex-1")
+            ui.html(_load_logo()).classes("flex-none")
+            with (
+                ui.element("div").classes("flex-1 flex items-center justify-center"),
+                ui.card().style(
+                    "padding: 14px 20px 10px 20px; min-width: 260px;"
+                    "background: var(--surface) !important;"
+                    "border: 1px solid var(--border) !important;"
+                    "border-radius: 10px !important;"
+                ),
+            ):
+                with ui.row().classes("items-center gap-2 mb-0"):
+                    health_dot = ui.icon("circle", color="red").classes("text-sm")
+                    health_label = (
+                        ui.label("Stopped")
+                        .classes("text-caption text-weight-medium")
+                        .style("color: var(--text-dim); font-size: 11px")
+                    )
+
+                mon_rows: dict[str, dict] = {}
+                for key, _icon, label in [
+                    ("vram", "memory", "VRAM"),
+                    ("gpu", "developer_board", "GPU"),
+                    ("cpu", "memory", "CPU"),
+                    ("ram", "storage", "RAM"),
+                ]:
+                    with ui.row().classes("w-full items-center gap-2").style("height: 18px"):
+                        ui.label(label).style("font-size: 9px; color: var(--text-dim); width: 30px; font-weight: 600")
+                        pct_label = ui.label("—").style(
+                            "font-size: 9px; color: var(--text); width: 32px; text-align: right"
+                        )
+                        bar = (
+                            ui.linear_progress(value=0, show_value=False)
+                            .style("height: 4px; flex: 1; border-radius: 2px")
+                            .props("instant-feedback")
+                        )
+                        spark = ui.echart(
+                            {
+                                "grid": {"top": 0, "bottom": 0, "left": 0, "right": 0},
+                                "xAxis": {"show": False, "type": "category"},
+                                "yAxis": {"show": False, "type": "value", "min": 0, "max": 100},
+                                "series": [
+                                    {
+                                        "type": "line",
+                                        "data": [],
+                                        "smooth": True,
+                                        "symbol": "none",
+                                        "lineStyle": {"width": 1.2, "color": "#2196f3"},
+                                        "areaStyle": {"color": "rgba(33,150,243,0.10)"},
+                                    }
+                                ],
+                            }
+                        ).style("width: 80px; height: 18px")
+                    mon_rows[key] = {"pct": pct_label, "bar": bar, "spark": spark}
 
         with (
-            ui.row().classes("w-full items-center justify-center gap-4 mt-1"),
+            ui.row().classes("w-full items-center justify-center gap-4"),
             ui.tabs()
             .props("inline-label no-caps indicator-color=primary")
             .classes("self-center text-subtitle1") as tabs,
         ):
             ui.tab("config", icon="tune", label="Configuration")
             ui.tab("test", icon="science", label="Test")
-
-        with (
-            ui.card().style(
-                "position: absolute; right: 24px; top: 50%; transform: translateY(-50%);"
-                "padding: 8px 14px 4px 14px;"
-                "background: var(--surface) !important;"
-                "border: 1px solid var(--border) !important;"
-                "border-radius: 10px !important;"
-            ),
-        ):
-            with ui.row().classes("items-center gap-2 mb-0"):
-                health_dot = ui.icon("circle", color="red").classes("text-sm")
-                health_label = (
-                    ui.label("Stopped")
-                    .classes("text-caption text-weight-medium")
-                    .style("color: var(--text-dim); font-size: 11px")
-                )
-
-            mon_rows: dict[str, dict] = {}
-            for key, _icon, label in [
-                ("vram", "memory", "VRAM"),
-                ("gpu", "developer_board", "GPU"),
-                ("cpu", "memory", "CPU"),
-                ("ram", "storage", "RAM"),
-            ]:
-                with ui.row().classes("w-full items-center gap-2").style("height: 18px"):
-                    ui.label(label).style("font-size: 9px; color: var(--text-dim); width: 30px; font-weight: 600")
-                    pct_label = ui.label("—").style(
-                        "font-size: 9px; color: var(--text); width: 32px; text-align: right"
-                    )
-                    bar = (
-                        ui.linear_progress(value=0, show_value=False)
-                        .style("height: 4px; flex: 1; border-radius: 2px")
-                        .props("instant-feedback")
-                    )
-                    spark = ui.echart(
-                        {
-                            "grid": {"top": 0, "bottom": 0, "left": 0, "right": 0},
-                            "xAxis": {"show": False, "type": "category"},
-                            "yAxis": {"show": False, "type": "value", "min": 0, "max": 100},
-                            "series": [
-                                {
-                                    "type": "line",
-                                    "data": [],
-                                    "smooth": True,
-                                    "symbol": "none",
-                                    "lineStyle": {"width": 1.2, "color": "#2196f3"},
-                                    "areaStyle": {"color": "rgba(33,150,243,0.10)"},
-                                }
-                            ],
-                        }
-                    ).style("width: 50px; height: 16px")
-                mon_rows[key] = {"pct": pct_label, "bar": bar, "spark": spark}
 
     ui.separator().classes("ellm-divider")
 
