@@ -137,10 +137,9 @@ async def index() -> None:
         ui.column().classes("w-full max-w-7xl items-center gap-2"),
     ):
         with ui.row().classes("w-full items-center justify-between"):
-            ui.element("div").classes("flex-1")
-            ui.html(_load_logo()).classes("flex-none")
+            ui.html(_load_logo()).classes("flex-1 flex items-center justify-center")
             with (
-                ui.element("div").classes("flex-1 flex items-center justify-center"),
+                ui.element("div").classes("flex-none flex items-center"),
                 ui.card().style(
                     "padding: 14px 20px 10px 20px; min-width: 260px;"
                     "background: var(--surface) !important;"

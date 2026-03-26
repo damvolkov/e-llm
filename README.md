@@ -18,11 +18,37 @@ GPU required (NVIDIA + CUDA). First run will build the image (~2 min).
 | Feature | Description |
 |---------|-------------|
 | **GUI** | NiceGUI dashboard — system info, model search/download, server config, test chat |
+| **Monitor** | Live VRAM/GPU/CPU/RAM sparklines, health indicator, power button to start/stop the server |
 | **API** | OpenAI-compatible at `/v1/chat/completions`, `/v1/models` |
 | **Health** | `/health` endpoint for monitoring |
 | **Config** | YAML-based (`data/config/config.yaml`), editable from GUI |
 | **Models** | Search HuggingFace, download GGUF, auto-detect quants |
 | **Hybrid** | Full llama.cpp parameter control — GPU layers, KV cache offload, threading |
+
+## Monitor
+
+<p align="center">
+  <img src="src/assets/monitor.png" alt="Live Monitor" width="320"/>
+</p>
+
+The header includes a real-time monitoring panel that stays visible on every page:
+
+| Element | Description |
+|---------|-------------|
+| **Health indicator** | Color-coded dot — green (healthy), orange (loading), red (error), gray (disabled) |
+| **Power button** | Toggle the llama-server on/off in real time. Checks available VRAM before starting (>50% free required) |
+| **VRAM** | Live VRAM consumption (used/total GB) with historical sparkline |
+| **GPU** | GPU utilization % with sparkline |
+| **CPU** | CPU usage % with sparkline |
+| **RAM** | RAM usage % with sparkline |
+
+Sparklines are color-coded: **green** (<60%), **orange** (60–85%), **red** (>85%). Metrics poll every 2 seconds, health every 3 seconds.
+
+### Server Control
+
+- **Enable** — validates GPU resources are available, then starts llama-server with the current YAML config.
+- **Disable** — gracefully stops the server (SIGTERM → SIGKILL fallback) and marks it as disabled.
+- **Toggle** — power button cycles between enabled/disabled states with resource gating.
 
 ## Architecture
 
@@ -91,6 +117,8 @@ src/e_llm/
 │   └── huggingface.py      # Model download
 ├── operational/
 │   ├── server.py           # ServerManager (subprocess lifecycle)
+│   ├── controller.py       # ServerController (enable/disable + resource gating)
+│   ├── monitor.py          # SystemMonitor (live CPU/RAM/GPU/VRAM metrics)
 │   ├── system.py           # Hardware evaluator
 │   └── models.py           # HF Hub search + quant extraction
 └── pages/
