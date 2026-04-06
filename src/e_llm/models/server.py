@@ -1,3 +1,4 @@
+from dataclasses import dataclass
 from pathlib import Path
 
 import yaml
@@ -112,3 +113,35 @@ class ServerConfig(BaseModel):
         """Save configuration to YAML file."""
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(yaml.safe_dump(self.model_dump(), default_flow_style=False, sort_keys=False))
+
+    @staticmethod
+    def list_profiles(profiles_dir: Path) -> list["ProfileEntry"]:
+        """List available configuration profiles sorted by name."""
+        if not profiles_dir.is_dir():
+            return []
+        return sorted(
+            (ProfileEntry(name=p.stem, path=p) for p in profiles_dir.glob("*.yaml")),
+            key=lambda e: e.name,
+        )
+
+    @staticmethod
+    def validate_profile_model(config: "ServerConfig", models_dir: Path) -> Path | None:
+        """Return resolved model path if it exists, None otherwise."""
+        model_path = config.model.path
+        if not model_path:
+            return None
+        for candidate in (Path(model_path), models_dir / model_path):
+            if candidate.exists():
+                return candidate
+        return None
+
+
+##### PROFILE ENTRY #####
+
+
+@dataclass(frozen=True, slots=True)
+class ProfileEntry:
+    """Reference to a saved configuration profile."""
+
+    name: str
+    path: Path

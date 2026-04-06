@@ -21,9 +21,11 @@ COPY pyproject.toml uv.lock ./
 RUN uv sync --frozen --no-install-project --python python3.13
 
 COPY src/ src/
+COPY assets/ assets/
 COPY docker/nginx.conf /etc/nginx/conf.d/ellm.conf
 COPY docker/entrypoint.sh /entrypoint.sh
 COPY data/config/config.yaml /defaults/config.yaml
+COPY data/config/profiles/ /defaults/profiles/
 
 RUN chmod +x /entrypoint.sh && \
     chown -R nobody:nogroup /var/log/nginx /var/lib/nginx /run

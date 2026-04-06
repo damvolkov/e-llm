@@ -23,7 +23,11 @@ _QUANT_PATTERN = re.compile(
     r")",
     re.IGNORECASE,
 )
+_STRIP_SUFFIXES = re.compile(r"\.gguf$", re.IGNORECASE)
+_STRIP_GGUF_TAG = re.compile(r"-GGUF$", re.IGNORECASE)
+_SHARD_PATTERN = re.compile(r"-?\d{5}-of-\d{5}")
 _GB = 1_073_741_824
+_MIN_QUERY_LEN = 2
 
 
 @dataclass(slots=True, frozen=True)
@@ -73,13 +77,49 @@ def _api() -> HfApi:
     return HfApi()
 
 
+def normalize_query(raw: str) -> str:
+    """Strip quant suffixes, file extensions, and shard patterns from a search query.
+
+    'gemma-4-31b-it-UD-Q6_K_XL-00001-of-00003.gguf' → 'gemma 4 31b it'
+    """
+    q = raw.strip()
+    q = _STRIP_SUFFIXES.sub("", q)
+    q = _STRIP_GGUF_TAG.sub("", q)
+    q = _SHARD_PATTERN.sub("", q)
+    q = _QUANT_PATTERN.sub("", q)
+    q = re.sub(r"[-_]+", " ", q)
+    q = re.sub(r"\s+", " ", q).strip()
+    return q
+
+
 def search_models(
     query: str,
     *,
     limit: int = 5,
     gguf_only: bool = True,
 ) -> list[ModelResult]:
-    """Search HuggingFace Hub for GGUF models by partial name."""
+    """Search HuggingFace Hub for GGUF models with query normalization and progressive fallback."""
+    normalized = normalize_query(query)
+    if len(normalized) < _MIN_QUERY_LEN:
+        return []
+
+    tokens = normalized.split()
+    for end in range(len(tokens), 0, -1):
+        candidate = " ".join(tokens[:end])
+        if len(candidate) < _MIN_QUERY_LEN:
+            break
+        if results := _search_hf(candidate, limit=limit, gguf_only=gguf_only):
+            return results
+    return []
+
+
+def _search_hf(
+    query: str,
+    *,
+    limit: int = 5,
+    gguf_only: bool = True,
+) -> list[ModelResult]:
+    """Single HuggingFace API call."""
     api = _api()
     models = api.list_models(
         search=query,

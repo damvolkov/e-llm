@@ -7,6 +7,10 @@ if [ ! -f /data/config/config.yaml ]; then
     cp /defaults/config.yaml /data/config/config.yaml
 fi
 
+# Seed profiles (always update from defaults)
+mkdir -p /data/config/profiles
+cp /defaults/profiles/*.yaml /data/config/profiles/
+
 mkdir -p /data/models /data/cache
 
 nginx -g "daemon on;"

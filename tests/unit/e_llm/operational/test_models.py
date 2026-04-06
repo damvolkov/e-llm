@@ -4,7 +4,7 @@ import dataclasses
 
 import pytest
 
-from e_llm.operational.models import GGUFFile, ModelResult, _extract_quant
+from e_llm.operational.models import GGUFFile, ModelResult, _extract_quant, normalize_query
 
 ##### QUANT EXTRACTION #####
 
@@ -82,3 +82,41 @@ async def test_model_result_total_size() -> None:
         ),
     )
     assert result.total_size_gb == pytest.approx(2.0, abs=0.01)
+
+
+##### QUERY NORMALIZATION #####
+
+
+@pytest.mark.parametrize(
+    ("raw", "expected"),
+    [
+        ("gemma-4-31b-it-UD-Q6_K_XL-00001-of-00003.gguf", "gemma 4 31b it"),
+        ("Qwen3-Coder-Next-UD-Q4_K_XL.gguf", "Qwen3 Coder Next"),
+        ("model-Q8_0.gguf", "model"),
+        ("some-model-IQ4_NL", "some model"),
+        ("gemma 4 31b", "gemma 4 31b"),
+        ("  spaces--and__underscores  ", "spaces and underscores"),
+        ("model-MXFP4_MOE.gguf", "model"),
+        ("Qwen3-Coder-Next-UD-Q6_K_XL-00002-of-00003.gguf", "Qwen3 Coder Next"),
+        ("plain-model-name", "plain model name"),
+        ("repo/model-F16.gguf", "repo/model"),
+        ("model-BF16", "model"),
+        ("a-Q4_K_M-GGUF", "a"),
+    ],
+    ids=[
+        "gemma-full-filename",
+        "qwen-ud-quant",
+        "simple-quant",
+        "iq-no-ext",
+        "already-clean",
+        "whitespace-normalization",
+        "mxfp4-moe",
+        "qwen-shard-middle",
+        "no-quant-hyphens",
+        "with-repo-prefix",
+        "bf16",
+        "trailing-gguf-suffix",
+    ],
+)
+async def test_normalize_query(raw: str, expected: str) -> None:
+    assert normalize_query(raw) == expected

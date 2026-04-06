@@ -1,4 +1,4 @@
-"""Tests for ServerConfig and spec models."""
+"""Tests for ServerConfig, spec models, and profile operations."""
 
 from pathlib import Path
 
@@ -10,6 +10,7 @@ from e_llm.models.server import (
     ComputeSpec,
     ContextSpec,
     ModelSpec,
+    ProfileEntry,
     SamplingSpec,
     ServerConfig,
     ServerSpec,
@@ -122,3 +123,78 @@ async def test_server_config_to_yaml_creates_parent_dirs(tmp_path: Path) -> None
     path = tmp_path / "deep" / "nested" / "config.yaml"
     ServerConfig().to_yaml(path)
     assert path.exists()
+
+
+##### PROFILES #####
+
+
+async def test_list_profiles_empty_dir(tmp_path: Path) -> None:
+    profiles_dir = tmp_path / "profiles"
+    profiles_dir.mkdir()
+    assert ServerConfig.list_profiles(profiles_dir) == []
+
+
+async def test_list_profiles_nonexistent_dir(tmp_path: Path) -> None:
+    assert ServerConfig.list_profiles(tmp_path / "nope") == []
+
+
+async def test_list_profiles_returns_sorted_entries(tmp_path: Path) -> None:
+    profiles_dir = tmp_path / "profiles"
+    profiles_dir.mkdir()
+    for name in ("zebra", "alpha", "middle"):
+        ServerConfig(server=ServerSpec(alias=name)).to_yaml(profiles_dir / f"{name}.yaml")
+    entries = ServerConfig.list_profiles(profiles_dir)
+    assert len(entries) == 3
+    assert [e.name for e in entries] == ["alpha", "middle", "zebra"]
+    assert all(isinstance(e, ProfileEntry) for e in entries)
+
+
+async def test_list_profiles_ignores_non_yaml(tmp_path: Path) -> None:
+    profiles_dir = tmp_path / "profiles"
+    profiles_dir.mkdir()
+    ServerConfig().to_yaml(profiles_dir / "valid.yaml")
+    (profiles_dir / "readme.txt").write_text("not a profile")
+    (profiles_dir / "data.json").write_text("{}")
+    assert len(ServerConfig.list_profiles(profiles_dir)) == 1
+
+
+async def test_list_profiles_loads_from_entry(tmp_path: Path) -> None:
+    profiles_dir = tmp_path / "profiles"
+    profiles_dir.mkdir()
+    ServerConfig(server=ServerSpec(alias="test-profile")).to_yaml(profiles_dir / "test.yaml")
+    entries = ServerConfig.list_profiles(profiles_dir)
+    loaded = ServerConfig.from_yaml(entries[0].path)
+    assert loaded.server.alias == "test-profile"
+
+
+##### PROFILE MODEL VALIDATION #####
+
+
+async def test_validate_profile_model_found_in_models_dir(tmp_data_dir: Path) -> None:
+    model_file = tmp_data_dir / "models" / "my-model.gguf"
+    model_file.write_bytes(b"\x00" * 64)
+    config = ServerConfig(model=ModelSpec(path="my-model.gguf"))
+    result = ServerConfig.validate_profile_model(config, tmp_data_dir / "models")
+    assert result is not None
+    assert result.name == "my-model.gguf"
+
+
+async def test_validate_profile_model_not_found(tmp_data_dir: Path) -> None:
+    config = ServerConfig(model=ModelSpec(path="missing.gguf"))
+    result = ServerConfig.validate_profile_model(config, tmp_data_dir / "models")
+    assert result is None
+
+
+async def test_validate_profile_model_empty_path(tmp_data_dir: Path) -> None:
+    config = ServerConfig(model=ModelSpec(path=""))
+    result = ServerConfig.validate_profile_model(config, tmp_data_dir / "models")
+    assert result is None
+
+
+async def test_validate_profile_model_absolute_path(tmp_path: Path) -> None:
+    model_file = tmp_path / "elsewhere" / "model.gguf"
+    model_file.parent.mkdir()
+    model_file.write_bytes(b"\x00" * 64)
+    config = ServerConfig(model=ModelSpec(path=str(model_file)))
+    result = ServerConfig.validate_profile_model(config, tmp_path / "models")
+    assert result is not None
