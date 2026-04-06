@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="src/assets/e-llm-landscape-front.svg" alt="e-llm" width="420">
+  <img src="assets/e-llm-landscape-front.svg" alt="e-llm" width="420">
 </p>
 
 <p align="center">
@@ -29,7 +29,7 @@ GPU required (NVIDIA + CUDA). First run will build the image (~2 min).
 A single-page interface with two tabs — **Configuration** and **Test** — that gives you full control over the inference server without touching a terminal.
 
 <p align="center">
-  <img src="src/assets/front-base.png" alt="Configuration Tab" width="720"/>
+  <img src="assets/front-base.png" alt="Configuration Tab" width="720"/>
 </p>
 
 **Configuration tab** — everything you need to set up and tune the server:
@@ -52,7 +52,7 @@ A single-page interface with two tabs — **Configuration** and **Test** — tha
 ### Live Monitor
 
 <p align="center">
-  <img src="src/assets/monitor.png" alt="Live Monitor" width="320"/>
+  <img src="assets/monitor.png" alt="Live Monitor" width="320"/>
 </p>
 
 The header includes a real-time monitoring panel that stays visible on every page:
@@ -338,7 +338,7 @@ make test-integration        # integration tests (server required)
 ## Annex: AI Recommender
 
 <p align="center">
-  <img src="src/assets/front-recommender.png" alt="AI Recommender" width="720"/>
+  <img src="assets/front-recommender.png" alt="AI Recommender" width="720"/>
 </p>
 
 The **Ask an Agent** section in the Configuration tab connects to an external LLM to analyze your hardware and recommend the optimal server configuration — including which GGUF model to download.

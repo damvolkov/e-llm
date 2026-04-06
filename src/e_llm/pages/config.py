@@ -350,6 +350,96 @@ def create(s: State) -> None:
                 .classes("w-full")
             )
 
+        ##### LOAD PROFILE #####
+
+        with ui.expansion("Load Profile", icon="inventory_2").classes("w-full"):
+            ui.label("Apply a preconfigured server profile. The referenced model must be downloaded first.").classes(
+                "text-caption text-grey mb-2"
+            )
+
+            profiles = ServerConfig.list_profiles(st.profiles_path)
+            profile_options = {e.name: e.name for e in profiles}
+            profile_select = (
+                ui.select(profile_options, label="Profile", value=None)
+                .props("outlined dense clearable")
+                .classes("w-64")
+            )
+            profile_status = ui.label("").classes("text-caption")
+
+            profile_detail = ui.column().classes("w-full gap-0 mt-2")
+
+            def _on_profile_select() -> None:
+                profile_detail.clear()
+                name = profile_select.value
+                if not name:
+                    return
+                entry = next((e for e in profiles if e.name == name), None)
+                if entry is None:
+                    return
+                preview = ServerConfig.from_yaml(entry.path)
+                rows: list[tuple[str, str]] = [
+                    ("Model", preview.model.path or "(auto-detect)"),
+                    ("GPU Layers", str(preview.model.n_gpu_layers)),
+                    ("Context", f"{preview.context.ctx_size:,}"),
+                    ("Cache K / V", f"{preview.cache.type_k} / {preview.cache.type_v}"),
+                    ("KV Offload", "CPU" if preview.cache.no_kv_offload else "GPU"),
+                    ("Threads", f"{preview.compute.threads} / {preview.compute.threads_batch}"),
+                    ("Flash Attn", "on" if preview.compute.flash_attn else "off"),
+                    ("mlock", "on" if preview.compute.mlock else "off"),
+                    ("no-mmap", "on" if preview.compute.no_mmap else "off"),
+                ]
+                with profile_detail:
+                    for label, value in rows:
+                        with ui.row().classes("w-full items-center gap-4 py-1"):
+                            ui.label(label).classes("w-32 text-weight-medium text-xs")
+                            ui.label(value).classes("font-mono text-xs")
+                        ui.separator()
+
+            profile_select.on_value_change(lambda _e: _on_profile_select())
+
+            load_btn = (
+                ui.button("Apply Profile", icon="download_done")
+                .props("unelevated dense")
+                .style("background: var(--ellm-accent) !important")
+            )
+
+            async def _apply_profile() -> None:
+                name = profile_select.value
+                if not name:
+                    profile_status.text = "Select a profile first"
+                    return
+                entry = next((e for e in profiles if e.name == name), None)
+                if entry is None:
+                    return
+                loaded = ServerConfig.from_yaml(entry.path)
+
+                if loaded.model.path and not ServerConfig.validate_profile_model(loaded, st.models_path):
+                    with ui.dialog() as warn_dialog, ui.card().classes("max-w-md"):
+                        with ui.row().classes("items-center gap-2 mb-2"):
+                            ui.icon("warning", color="warning").classes("text-2xl")
+                            ui.label("Model Not Found").classes("text-h6")
+                        ui.label(
+                            f"The profile requires '{loaded.model.path}' but it is not downloaded. "
+                            "Go to Models and download it first."
+                        ).classes("text-body2")
+                        ui.button("OK", on_click=warn_dialog.close).props("flat").style("color: var(--ellm-accent)")
+                    warn_dialog.open()
+                    return
+
+                loaded.to_yaml(st.config_path)
+                profile_status.text = f"Applied '{name}' — restarting server..."
+                load_btn.props(add="loading")
+                started = await s.controller.restart(loaded)
+                load_btn.props(remove="loading")
+                _refresh_model_dropdown()
+                profile_status.text = (
+                    f"Profile '{name}' active — server running"
+                    if started
+                    else f"Profile '{name}' applied — check model"
+                )
+
+            load_btn.on_click(_apply_profile)
+
         ##### AGENT TUNER #####
 
         with ui.expansion("Ask an Agent", icon="auto_awesome").classes("w-full"):

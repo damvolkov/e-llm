@@ -59,7 +59,7 @@ class Settings(BaseSettings):
     API_NAME: ClassVar[str] = PROJECT.get("project", {}).get("name", "e-llm")
     API_DESCRIPTION: ClassVar[str] = PROJECT.get("project", {}).get("description", "")
     API_VERSION: ClassVar[str] = _get_version(BASE_DIR)
-    ASSETS_PATH: ClassVar[Path] = BASE_DIR / "src" / "assets"
+    ASSETS_PATH: ClassVar[Path] = BASE_DIR / "assets"
     LOGO_PATH: ClassVar[Path] = ASSETS_PATH / "e-llm-landscape-front.svg"
     ICON_PATH: ClassVar[Path] = ASSETS_PATH / "e-llm-icon-front.svg"
     LOGO_HEIGHT: ClassVar[int] = 160
@@ -86,6 +86,11 @@ class Settings(BaseSettings):
     @property
     def config_path(self) -> Path:
         return self.DATA_DIR / "config" / "config.yaml"
+
+    @computed_field
+    @property
+    def profiles_path(self) -> Path:
+        return self.DATA_DIR / "config" / "profiles"
 
     @computed_field
     @property
