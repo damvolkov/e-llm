@@ -41,7 +41,7 @@ _PROVIDERS = ["openai", "anthropic", "google"]
 def _list_available_models() -> dict[str, str]:
     models_dir = st.models_path
     models_dir.mkdir(parents=True, exist_ok=True)
-    return {p.name: p.name for p in sorted(models_dir.glob("*.gguf"))}
+    return {str(p.relative_to(models_dir)): str(p.relative_to(models_dir)) for p in sorted(models_dir.rglob("*.gguf"))}
 
 
 def create(s: State) -> None:
@@ -178,7 +178,7 @@ def create(s: State) -> None:
                     ui.label(result.repo_id).classes("text-subtitle2")
                     ui.label(f"{len(quants)} files").classes("text-grey text-xs")
                 for f in quants:
-                    already = (st.models_path / f.filename).exists()
+                    already = any(st.models_path.rglob(f.filename))
                     with ui.row().classes("w-full items-center py-1 gap-2"):
                         ui.label(f.filename).classes("font-mono text-xs flex-grow")
                         if f.quant:
@@ -228,7 +228,7 @@ def create(s: State) -> None:
             models_container.clear()
             models_dir = st.models_path
             models_dir.mkdir(parents=True, exist_ok=True)
-            gguf_files = sorted(models_dir.glob("*.gguf"))
+            gguf_files = sorted(models_dir.rglob("*.gguf"))
             if not gguf_files:
                 with models_container:
                     ui.label("No models downloaded yet.").classes("text-grey py-2")
@@ -238,7 +238,7 @@ def create(s: State) -> None:
                     size_gb = mp.stat().st_size / (1024**3)
                     with ui.row().classes("w-full items-center justify-between py-1"):
                         ui.icon("description").classes("text-grey")
-                        ui.label(mp.name).classes("flex-grow font-mono text-sm")
+                        ui.label(str(mp.relative_to(models_dir))).classes("flex-grow font-mono text-sm")
                         ui.label(f"{size_gb:.2f} GB").classes("text-grey text-sm")
                         ui.button(
                             icon="delete",

@@ -52,7 +52,7 @@ class ServerManager:
                 if candidate.exists():
                     return candidate
 
-        gguf_files = sorted(self._models_dir.glob("*.gguf"))
+        gguf_files = sorted(self._models_dir.rglob("*.gguf"))
         return gguf_files[0] if gguf_files else None
 
     async def start(self, config: ServerConfig) -> bool:
