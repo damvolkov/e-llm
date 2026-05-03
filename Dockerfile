@@ -1,24 +1,31 @@
-FROM ghcr.io/astral-sh/uv:python3.13-bookworm
+FROM nvidia/cuda:12.6.3-devel-ubuntu24.04 AS llama-builder
+
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends cmake git build-essential && \
+    rm -rf /var/lib/apt/lists/*
+
+RUN git clone --depth 1 --branch b9012 https://github.com/ggml-org/llama.cpp /llama.cpp
+
+RUN cmake -B /llama.cpp/build -S /llama.cpp -DGGML_CUDA=ON -DCMAKE_BUILD_TYPE=Release && \
+    cmake --build /llama.cpp/build -j$(nproc) --target llama-server
+
+
+FROM nvidia/cuda:12.6.3-runtime-ubuntu24.04
 
 ENV DEBIAN_FRONTEND=noninteractive
 
-# Install llama.cpp server, nginx, curl
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
+COPY --from=llama-builder /llama.cpp/build/bin/llama-server /usr/local/bin/llama-server
+
 RUN apt-get update && \
-    apt-get install -y --no-install-recommends \
-        curl wget git nginx && \
+    apt-get install -y --no-install-recommends curl nginx && \
     rm -rf /var/lib/apt/lists/* && \
     rm -f /etc/nginx/sites-enabled/default
-
-# Install llama.cpp server
-RUN wget -q https://github.com/ggml-org/llama.cpp/releases/download/b4482/llama-b4482-bin-ubuntu-24.04-x86_64-gpu-cuda-12.6.tgz && \
-    tar -xzf llama-b4482-bin-ubuntu-24.04-x86_64-gpu-cuda-12.6.tgz && \
-    mv llama-b4482-bin-ubuntu-24.04-x86_64-gpu-cuda-12.6 /app && \
-    rm llama-b4482-bin-ubuntu-24.04-x86_64-gpu-cuda-12.6.tgz
 
 WORKDIR /opt/ellm
 
 COPY pyproject.toml uv.lock ./
-RUN uv sync --frozen --no-install-project
+RUN uv python install 3.13 && uv sync --frozen --no-install-project
 
 COPY src/ src/
 COPY assets/ assets/
@@ -30,9 +37,8 @@ COPY data/config/profiles/ /defaults/profiles/
 RUN chmod +x /entrypoint.sh && \
     chown -R nobody:nogroup /var/log/nginx /var/lib/nginx /run
 
-ENV PATH="/opt/ellm/.venv/bin:$PATH" \
-    PYTHONPATH="/opt/ellm/src" \
-    LD_LIBRARY_PATH="/app:${LD_LIBRARY_PATH}"
+ENV PATH="/opt/ellm/.venv/bin:/usr/local/bin:$PATH" \
+    PYTHONPATH="/opt/ellm/src"
 
 EXPOSE 80 45150
 
