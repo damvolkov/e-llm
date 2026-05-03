@@ -2,13 +2,10 @@ FROM ghcr.io/ggml-org/llama.cpp:server-cuda
 
 ENV DEBIAN_FRONTEND=noninteractive
 
-# Python 3.13 via deadsnakes + nginx + curl
+# Python 3.12 (Ubuntu 24.04 native) + nginx + curl
 RUN apt-get update && \
-    apt-get install -y --no-install-recommends software-properties-common && \
-    add-apt-repository ppa:deadsnakes/ppa && \
-    apt-get update && \
     apt-get install -y --no-install-recommends \
-        python3.13 python3.13-venv python3.13-dev \
+        python3 python3-venv python3-dev \
         nginx curl && \
     rm -rf /var/lib/apt/lists/* && \
     rm -f /etc/nginx/sites-enabled/default
@@ -18,7 +15,7 @@ COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/
 WORKDIR /opt/ellm
 
 COPY pyproject.toml uv.lock ./
-RUN uv sync --frozen --no-install-project --python python3.13
+RUN uv sync --frozen --no-install-project --python python3
 
 COPY src/ src/
 COPY assets/ assets/

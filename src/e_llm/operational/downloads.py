@@ -22,11 +22,13 @@ class DownloadManager:
     __slots__ = ("hf_adapter", "state_file", "downloads", "tasks")
 
     def __init__(self, hf_adapter: HuggingFaceAdapter, state_file: Path) -> None:
+        """Initialize download manager with HuggingFace adapter and state file."""
         self.hf_adapter = hf_adapter
         self.state_file = state_file
         self.downloads: dict[str, DownloadState] = {}
         self.tasks: dict[str, asyncio.Task] = {}
         self.load_state()
+        self._cleanup_orphaned_downloads()
 
     def load_state(self) -> None:
         """Load download state from JSON file."""
@@ -156,3 +158,14 @@ class DownloadManager:
         for state in self.list_downloads(DownloadStatus.CANCELLED):
             dest = Path(state.dest)
             dest.unlink(missing_ok=True)
+
+    def _cleanup_orphaned_downloads(self) -> None:
+        """Mark orphaned downloads (stuck in downloading/queued) as failed on startup."""
+        for state in self.downloads.values():
+            if state.status in (DownloadStatus.DOWNLOADING, DownloadStatus.QUEUED):
+                # No active task for this download — mark as failed
+                state.mark_failed("Download interrupted (server restart)")
+                # Clean up partial file
+                dest = Path(state.dest)
+                dest.unlink(missing_ok=True)
+        self.save_state()

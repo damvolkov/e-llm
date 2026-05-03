@@ -111,6 +111,7 @@ def create(s: State) -> None:
         ui.separator().classes("my-3")
         ui.label("Active Downloads").classes("text-subtitle1 text-weight-medium")
         active_downloads_container = ui.column().classes("w-full gap-0")
+        active_downloads_widgets: dict[str, dict] = {}  # task_id -> {label, progress, etc}
 
         ui.separator().classes("my-3")
         ui.label("Downloaded Models").classes("text-subtitle1 text-weight-medium")
@@ -212,26 +213,61 @@ def create(s: State) -> None:
                 ui.notify(f"Failed to start download: {exc}", type="negative")
 
         def _refresh_active_downloads() -> None:
-            active_downloads_container.clear()
             active = s.download_manager.list_active()
+            active_ids = {dl.task_id for dl in active}
+
+            # Remove widgets for completed/cancelled downloads
+            for task_id in list(active_downloads_widgets.keys()):
+                if task_id not in active_ids:
+                    widgets = active_downloads_widgets.pop(task_id)
+                    widgets["container"].delete()
+
+            # Update or create widgets
             if not active:
-                with active_downloads_container:
-                    ui.label("No active downloads").classes("text-grey py-2")
+                if not active_downloads_widgets:
+                    active_downloads_container.clear()
+                    with active_downloads_container:
+                        ui.label("No active downloads").classes("text-grey py-2")
                 return
-            with active_downloads_container:
-                for dl in active:
-                    with ui.column().classes("w-full gap-1 py-1"):
-                        with ui.row().classes("w-full items-center gap-2"):
-                            ui.icon("download").classes("text-grey")
-                            ui.label(dl.filename).classes("flex-grow font-mono text-xs")
-                            ui.label(f"{dl.progress_pct:.0f}%").classes("text-grey text-xs")
-                            ui.label(f"{dl.downloaded_gb:.1f}/{dl.size_gb:.1f} GB").classes("text-grey text-xs")
-                            ui.button(
-                                icon="cancel",
-                                on_click=lambda _e, tid=dl.task_id: _cancel_download(tid),
-                            ).props("flat round dense size=sm color=negative")
-                        ui.linear_progress(value=dl.progress_pct / 100, show_value=False).classes("w-full")
-                    ui.separator()
+
+            # Clear "no downloads" message if present
+            if not active_downloads_widgets and active:
+                active_downloads_container.clear()
+
+            for dl in active:
+                if dl.task_id in active_downloads_widgets:
+                    # Update existing widgets
+                    widgets = active_downloads_widgets[dl.task_id]
+                    widgets["pct_label"].text = f"{dl.progress_pct:.0f}%"
+                    widgets["size_label"].text = f"{dl.downloaded_gb:.1f}/{dl.size_gb:.1f} GB"
+                    widgets["progress"].value = dl.progress_pct / 100
+                else:
+                    # Create new widgets
+                    with active_downloads_container:
+                        container = ui.column().classes("w-full gap-1 py-1")
+                        with container:
+                            with ui.row().classes("w-full items-center gap-2"):
+                                ui.icon("download").classes("text-grey")
+                                ui.label(dl.filename).classes("flex-grow font-mono text-xs")
+                                pct_label = ui.label(f"{dl.progress_pct:.0f}%").classes("text-grey text-xs")
+                                size_label = ui.label(f"{dl.downloaded_gb:.1f}/{dl.size_gb:.1f} GB").classes(
+                                    "text-grey text-xs"
+                                )
+                                ui.button(
+                                    icon="cancel",
+                                    on_click=lambda _e, tid=dl.task_id: _cancel_download(tid),
+                                ).props("flat round dense size=sm color=negative")
+                            progress = ui.linear_progress(value=dl.progress_pct / 100, show_value=False).classes(
+                                "w-full"
+                            )
+                            ui.separator()
+
+                        active_downloads_widgets[dl.task_id] = {
+                            "container": container,
+                            "pct_label": pct_label,
+                            "size_label": size_label,
+                            "progress": progress,
+                        }
 
         async def _cancel_download(task_id: str) -> None:
             await s.download_manager.cancel_download(task_id)
