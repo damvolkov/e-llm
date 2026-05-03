@@ -104,12 +104,6 @@ include = ["src/e_llm/core/logger.py"]
 [tool.ty.overrides.rules]
 invalid-argument-type = "ignore"
 
-[[tool.ty.overrides]]
-# parametrized dict spread — ty can't narrow through **{str: bool}
-include = ["tests/"]
-[tool.ty.overrides.rules]
-invalid-argument-type = "ignore"
-
 [tool.coverage.run]
 source = ["e_llm"]
 branch = true

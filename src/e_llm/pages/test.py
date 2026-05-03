@@ -80,19 +80,23 @@ def create(s: State) -> None:
         disabled_banner.visible = False
 
     def _update_guard() -> None:
-        running = s.server_manager.is_running
-        msg_input.set_enabled(running)
-        send_btn.set_enabled(running)
-        disabled_banner.visible = not running
+        try:
+            running = s.server_manager.is_running
+            msg_input.set_enabled(running)
+            send_btn.set_enabled(running)
+            disabled_banner.visible = not running
 
-        model_bar.clear()
-        with model_bar:
-            if running:
-                ui.icon("smart_toy").style("color: var(--accent)")
-                ui.label("Model loaded").classes("text-caption").style("color: var(--text-dim)")
-            else:
-                ui.icon("smart_toy", color="grey")
-                ui.label("No model loaded").classes("text-caption text-grey")
+            model_bar.clear()
+            with model_bar:
+                if running:
+                    ui.icon("smart_toy").style("color: var(--accent)")
+                    ui.label("Model loaded").classes("text-caption").style("color: var(--text-dim)")
+                else:
+                    ui.icon("smart_toy", color="grey")
+                    ui.label("No model loaded").classes("text-caption text-grey")
+        except RuntimeError:
+            # Element deleted — user navigated away, stop polling
+            pass
 
     send_btn.on_click(_handle_send)
     clear_btn.on_click(_handle_clear)

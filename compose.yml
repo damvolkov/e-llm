@@ -14,6 +14,7 @@ services:
     volumes:
       - ./data:/data
       - ./src:/opt/ellm/src
+      - ./assets:/opt/ellm/assets
     deploy:
       resources:
         reservations:

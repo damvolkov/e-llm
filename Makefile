@@ -60,7 +60,7 @@ lint:
 	@uv run ruff format $(PACKAGE) tests/
 
 type:
-	@uv run ty check
+	@uv run ty check src/
 
 test:
 	@uv run pytest tests/unit -n auto -v --cov --cov-report=term-missing
