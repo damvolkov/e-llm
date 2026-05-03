@@ -13,6 +13,7 @@ from e_llm.core.settings import settings as st
 from e_llm.core.state import State
 from e_llm.models.server import ServerConfig
 from e_llm.operational.controller import ServerController
+from e_llm.operational.downloads import DownloadManager
 from e_llm.operational.monitor import SystemMonitor
 from e_llm.operational.server import ServerManager
 from e_llm.operational.system import SystemEvaluator
@@ -63,6 +64,7 @@ async def on_startup() -> None:
     state.hf_adapter = HuggingFaceAdapter()
     state.server_manager = ServerManager(st.models_path)
     state.controller = ServerController(state.server_manager)
+    state.download_manager = DownloadManager(state.hf_adapter, st.data_path / "downloads.json")
     state.system_info = await SystemEvaluator(st.data_path).evaluate()
 
     logger.info("adapters initialized", step="START", url=st.LLAMACPP_URL)
@@ -235,28 +237,36 @@ async def index() -> None:
     power_btn.on_click(_toggle_server)
 
     async def _poll_health() -> None:
-        hs = await resolve_health(state)
-        health_dot.props(f'color="{hs.color}"')
-        health_dot.style("animation: pulse 1.4s ease-in-out infinite" if hs.pulsing else "")
-        health_label.text = hs.label
-        health_dot.tooltip(hs.tooltip)
-        _sync_power_btn()
+        try:
+            hs = await resolve_health(state)
+            health_dot.props(f'color="{hs.color}"')
+            health_dot.style("animation: pulse 1.4s ease-in-out infinite" if hs.pulsing else "")
+            health_label.text = hs.label
+            health_dot.tooltip(hs.tooltip)
+            _sync_power_btn()
+        except RuntimeError:
+            # Element deleted — user navigated away, stop polling
+            pass
 
     async def _poll_monitor() -> None:
-        snap = await asyncio.to_thread(monitor.poll)
-        _update_row(mon_rows["cpu"], snap.cpu_pct, monitor.cpu_history)
-        _update_row(mon_rows["ram"], snap.ram_pct, monitor.ram_history)
-        if snap.gpu_available:
-            _update_row(mon_rows["gpu"], snap.gpu_util_pct, monitor.gpu_util_history)
-            _update_row(
-                mon_rows["vram"],
-                snap.vram_pct,
-                monitor.vram_history,
-                f"{snap.vram_used_mb // 1024}/{snap.vram_total_mb // 1024}G",
-            )
-        else:
-            for key in ("gpu", "vram"):
-                mon_rows[key]["pct"].text = "n/a"
+        try:
+            snap = await asyncio.to_thread(monitor.poll)
+            _update_row(mon_rows["cpu"], snap.cpu_pct, monitor.cpu_history)
+            _update_row(mon_rows["ram"], snap.ram_pct, monitor.ram_history)
+            if snap.gpu_available:
+                _update_row(mon_rows["gpu"], snap.gpu_util_pct, monitor.gpu_util_history)
+                _update_row(
+                    mon_rows["vram"],
+                    snap.vram_pct,
+                    monitor.vram_history,
+                    f"{snap.vram_used_mb // 1024}/{snap.vram_total_mb // 1024}G",
+                )
+            else:
+                for key in ("gpu", "vram"):
+                    mon_rows[key]["pct"].text = "n/a"
+        except RuntimeError:
+            # Element deleted — user navigated away, stop polling
+            pass
 
     ui.timer(st.HEALTH_POLL_INTERVAL, _poll_health)
     ui.timer(2.0, _poll_monitor)

@@ -1,9 +1,9 @@
 server:
   host: 0.0.0.0
   port: 45150
-  alias: qwen3-coder-next
+  alias: gemma-4-26b-a4b
 model:
-  path: ''
+  path: gemma-4-26B-A4B-it-UD-Q8_K_XL.gguf
   n_gpu_layers: -1
 context:
   ctx_size: 65536

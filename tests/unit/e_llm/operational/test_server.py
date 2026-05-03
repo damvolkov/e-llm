@@ -134,9 +134,9 @@ async def test_build_command_boolean_flags(
 ) -> None:
     mgr = ServerManager(tmp_data_dir / "models")
     if field == "no_kv_offload":
-        config = ServerConfig(cache=CacheSpec(**{field: value}))
+        config = ServerConfig(cache=CacheSpec(**{field: value}))  # type: ignore[arg-type]
     else:
-        config = ServerConfig(compute=ComputeSpec(**{field: value}))
+        config = ServerConfig(compute=ComputeSpec(**{field: value}))  # type: ignore[arg-type]
     cmd = mgr._sm_build_command(config, sample_model_file)
     assert flag in cmd
 

@@ -10,6 +10,7 @@ from nicegui import ui
 
 from e_llm.core.settings import settings as st
 from e_llm.models.agent import TunerInput, TunerOutput
+from e_llm.models.download import DownloadStatus
 from e_llm.models.server import (
     CacheSpec,
     ComputeSpec,
@@ -41,7 +42,7 @@ _PROVIDERS = ["openai", "anthropic", "google"]
 def _list_available_models() -> dict[str, str]:
     models_dir = st.models_path
     models_dir.mkdir(parents=True, exist_ok=True)
-    return {p.name: p.name for p in sorted(models_dir.glob("*.gguf"))}
+    return {str(p.relative_to(models_dir)): str(p.relative_to(models_dir)) for p in sorted(models_dir.rglob("*.gguf"))}
 
 
 def create(s: State) -> None:
@@ -107,9 +108,9 @@ def create(s: State) -> None:
         results_container = ui.column().classes("w-full gap-1 mt-2")
         quants_container = ui.column().classes("w-full gap-0 mt-2")
 
-        dl_status = ui.label("").classes("text-caption mt-1")
-        dl_progress = ui.linear_progress(value=0, show_value=False).classes("w-full")
-        dl_progress.visible = False
+        ui.separator().classes("my-3")
+        ui.label("Active Downloads").classes("text-subtitle1 text-weight-medium")
+        active_downloads_container = ui.column().classes("w-full gap-0")
 
         ui.separator().classes("my-3")
         ui.label("Downloaded Models").classes("text-subtitle1 text-weight-medium")
@@ -178,7 +179,7 @@ def create(s: State) -> None:
                     ui.label(result.repo_id).classes("text-subtitle2")
                     ui.label(f"{len(quants)} files").classes("text-grey text-xs")
                 for f in quants:
-                    already = (st.models_path / f.filename).exists()
+                    already = any(st.models_path.rglob(f.filename))
                     with ui.row().classes("w-full items-center py-1 gap-2"):
                         ui.label(f.filename).classes("font-mono text-xs flex-grow")
                         if f.quant:
@@ -198,37 +199,51 @@ def create(s: State) -> None:
         async def _download(repo: str, file: GGUFFile) -> None:
             dest = st.models_path / file.filename
             if dest.exists():
-                dl_status.text = "Already downloaded"
+                ui.notify("File already downloaded", type="info")
                 return
-            dl_progress.visible = True
-            dl_progress.value = 0
-            dl_status.text = f"Downloading {file.filename}..."
-
-            def _on_progress(downloaded: int, total: int) -> None:
-                if total > 0:
-                    dl_progress.value = downloaded / total
-                    pct = downloaded / total * 100
-                    dl_status.text = (
-                        f"Downloading... {pct:.0f}% ({downloaded / (1024**3):.1f}/{total / (1024**3):.1f} GB)"
-                    )
 
             try:
-                await s.hf_adapter.download_model(repo, file.filename, dest, _on_progress)
-                dl_status.text = f"Downloaded {file.filename}"
-                dl_progress.value = 1.0
-                _refresh_models()
-                _refresh_model_dropdown()
+                await s.download_manager.start_download(repo, file.filename, dest)
+                ui.notify(f"Download started: {file.filename}", type="positive")
+                _refresh_active_downloads()
+            except FileExistsError:
+                ui.notify("File already exists", type="info")
             except Exception as exc:
-                dl_status.text = f"Download failed: {exc}"
-                dest.unlink(missing_ok=True)
-            finally:
-                dl_progress.visible = False
+                ui.notify(f"Failed to start download: {exc}", type="negative")
+
+        def _refresh_active_downloads() -> None:
+            active_downloads_container.clear()
+            active = s.download_manager.list_active()
+            if not active:
+                with active_downloads_container:
+                    ui.label("No active downloads").classes("text-grey py-2")
+                return
+            with active_downloads_container:
+                for dl in active:
+                    with ui.column().classes("w-full gap-1 py-1"):
+                        with ui.row().classes("w-full items-center gap-2"):
+                            ui.icon("download").classes("text-grey")
+                            ui.label(dl.filename).classes("flex-grow font-mono text-xs")
+                            ui.label(f"{dl.progress_pct:.0f}%").classes("text-grey text-xs")
+                            ui.label(f"{dl.downloaded_gb:.1f}/{dl.size_gb:.1f} GB").classes("text-grey text-xs")
+                            ui.button(
+                                icon="cancel",
+                                on_click=lambda _e, tid=dl.task_id: _cancel_download(tid),
+                            ).props("flat round dense size=sm color=negative")
+                        ui.linear_progress(value=dl.progress_pct / 100, show_value=False).classes("w-full")
+                    ui.separator()
+
+        async def _cancel_download(task_id: str) -> None:
+            await s.download_manager.cancel_download(task_id)
+            ui.notify("Download cancelled", type="info")
+            _refresh_active_downloads()
+            _refresh_models()
 
         def _refresh_models() -> None:
             models_container.clear()
             models_dir = st.models_path
             models_dir.mkdir(parents=True, exist_ok=True)
-            gguf_files = sorted(models_dir.glob("*.gguf"))
+            gguf_files = sorted(models_dir.rglob("*.gguf"))
             if not gguf_files:
                 with models_container:
                     ui.label("No models downloaded yet.").classes("text-grey py-2")
@@ -238,7 +253,7 @@ def create(s: State) -> None:
                     size_gb = mp.stat().st_size / (1024**3)
                     with ui.row().classes("w-full items-center justify-between py-1"):
                         ui.icon("description").classes("text-grey")
-                        ui.label(mp.name).classes("flex-grow font-mono text-sm")
+                        ui.label(str(mp.relative_to(models_dir))).classes("flex-grow font-mono text-sm")
                         ui.label(f"{size_gb:.2f} GB").classes("text-grey text-sm")
                         ui.button(
                             icon="delete",
@@ -252,7 +267,20 @@ def create(s: State) -> None:
             _refresh_models()
             _refresh_model_dropdown()
 
+        def _poll_downloads() -> None:
+            try:
+                _refresh_active_downloads()
+                completed = [dl for dl in s.download_manager.list_downloads() if dl.status == DownloadStatus.COMPLETED]
+                if completed:
+                    _refresh_models()
+                    _refresh_model_dropdown()
+            except RuntimeError:
+                # Element deleted — user navigated away, stop polling
+                pass
+
+        _refresh_active_downloads()
         _refresh_models()
+        ui.timer(2.0, _poll_downloads)
 
     ##### SERVER CONFIGURATION #####
 
