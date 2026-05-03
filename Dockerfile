@@ -1,21 +1,24 @@
-FROM ghcr.io/ggml-org/llama.cpp:server-cuda
+FROM ghcr.io/astral-sh/uv:latest
 
 ENV DEBIAN_FRONTEND=noninteractive
 
-# Python 3.12 (Ubuntu 24.04 native) + nginx + curl
+# Install llama.cpp server, nginx, curl
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
-        python3 python3-venv python3-dev \
-        nginx curl && \
+        curl wget git nginx && \
     rm -rf /var/lib/apt/lists/* && \
     rm -f /etc/nginx/sites-enabled/default
 
-COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/
+# Install llama.cpp server
+RUN wget -q https://github.com/ggml-org/llama.cpp/releases/download/b4482/llama-b4482-bin-ubuntu-24.04-x86_64-gpu-cuda-12.6.tgz && \
+    tar -xzf llama-b4482-bin-ubuntu-24.04-x86_64-gpu-cuda-12.6.tgz && \
+    mv llama-b4482-bin-ubuntu-24.04-x86_64-gpu-cuda-12.6 /app && \
+    rm llama-b4482-bin-ubuntu-24.04-x86_64-gpu-cuda-12.6.tgz
 
 WORKDIR /opt/ellm
 
 COPY pyproject.toml uv.lock ./
-RUN uv sync --frozen --no-install-project --python python3
+RUN uv sync --frozen --no-install-project
 
 COPY src/ src/
 COPY assets/ assets/
