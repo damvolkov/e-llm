@@ -106,7 +106,7 @@ async def test_build_command_basic(tmp_data_dir: Path, sample_model_file: Path) 
         compute=ServerConfig().compute,
     )
     cmd = mgr._sm_build_command(config, sample_model_file)
-    assert cmd[0] == "/app/llama-server"
+    assert cmd[0] == "/usr/local/bin/llama-server"
     assert "--model" in cmd
     assert str(sample_model_file) in cmd
     assert "--jinja" in cmd

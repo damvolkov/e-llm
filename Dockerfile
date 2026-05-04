@@ -18,7 +18,10 @@ FROM nvidia/cuda:12.6.3-runtime-ubuntu24.04
 ENV DEBIAN_FRONTEND=noninteractive
 
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
-COPY --from=llama-builder /llama.cpp/build/bin/llama-server /usr/local/bin/llama-server
+COPY --from=llama-builder /llama.cpp/build/bin/ /usr/local/lib/llama/
+RUN ln -sf /usr/local/lib/llama/llama-server /usr/local/bin/llama-server && \
+    echo "/usr/local/lib/llama" > /etc/ld.so.conf.d/llama.conf && \
+    ldconfig
 
 RUN apt-get update && \
     apt-get install -y --no-install-recommends curl nginx && \

@@ -64,7 +64,7 @@ class Settings(BaseSettings):
     ICON_PATH: ClassVar[Path] = ASSETS_PATH / "e-llm-icon-front.svg"
     LOGO_HEIGHT: ClassVar[int] = 160
 
-    LLAMA_SERVER_BIN: ClassVar[str] = "/app/llama-server"
+    LLAMA_SERVER_BIN: ClassVar[str] = "/usr/local/bin/llama-server"
     LLAMA_INTERNAL_HOST: ClassVar[str] = "127.0.0.1"
     LLAMA_INTERNAL_PORT: ClassVar[int] = 45151
     HEALTH_POLL_INTERVAL: ClassVar[float] = 3.0

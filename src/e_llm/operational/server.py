@@ -5,6 +5,7 @@ import signal
 import subprocess
 from pathlib import Path
 
+from e_llm.core.logger import logger
 from e_llm.core.settings import settings as st
 from e_llm.models.server import ServerConfig
 
@@ -63,11 +64,15 @@ class ServerManager:
         if not (model_path := self.find_model(config)):
             return False
 
-        self._process = subprocess.Popen(
-            self._sm_build_command(config, model_path),
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.PIPE,
-        )
+        try:
+            self._process = subprocess.Popen(
+                self._sm_build_command(config, model_path),
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.PIPE,
+            )
+        except FileNotFoundError:
+            logger.error("🔴 LLAMA_SERVER_NOT_FOUND", bin=st.LLAMA_SERVER_BIN)
+            return False
         return True
 
     async def stop(self) -> None:

@@ -78,8 +78,10 @@ class ServerController:
         self._enabled = True
         config = ServerConfig.from_yaml(st.config_path)
         if self._manager.find_model(config):
-            await self._manager.start(config)
-            logger.info("server enabled", step="OK")
+            if await self._manager.start(config):
+                logger.info("server enabled", step="OK")
+            else:
+                logger.error("🔴 SERVER_START_FAILED", bin=st.LLAMA_SERVER_BIN)
         return check
 
     async def disable(self) -> None:
