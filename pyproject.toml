@@ -33,6 +33,7 @@ dependencies = [
     "structlog",
     "pydantic-ai",
     "nvidia-ml-py>=13.595.45",
+    "openai>=2.29.0",
 ]
 
 [dependency-groups]
