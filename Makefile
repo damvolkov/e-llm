@@ -9,7 +9,7 @@ CYAN   := \033[0;36m
 
 export PYTHONPATH := $(CURDIR)/src
 
-.PHONY: help install sync lock lint type test test-integration check dev docker-build docker-up docker-down log clean
+.PHONY: help install sync lock lint type test test-integration check dev dev-prod prod-stop prod-start deploy docker-build docker-up docker-down log clean
 
 help:
 	@echo "$(BOLD)$(CYAN)e-llm$(RESET) — LLM inference server (llama.cpp + NiceGUI)"
@@ -26,6 +26,10 @@ help:
 	@echo ""
 	@echo "$(BOLD)Development:$(RESET)"
 	@echo "  $(GREEN)make dev$(RESET)              Run NiceGUI locally (reload)"
+	@echo "  $(GREEN)make dev-prod$(RESET)         Stop prod + run dev with prod data on :45150"
+	@echo "  $(GREEN)make prod-stop$(RESET)        Stop production container"
+	@echo "  $(GREEN)make prod-start$(RESET)       Start production container"
+	@echo "  $(GREEN)make deploy$(RESET)           Build image + restart prod"
 	@echo ""
 	@echo "$(BOLD)Docker:$(RESET)"
 	@echo "  $(GREEN)make docker-up$(RESET)        Build + start (GPU, :$(PORT))"
@@ -76,6 +80,24 @@ check: lint type test
 dev:
 	@echo "$(CYAN)=== NiceGUI: http://localhost:8080 [reload] ===$(RESET)"
 	@LLAMACPP_URL=http://127.0.0.1:45150 DATA_DIR=./data uv run python src/e_llm/main.py
+
+prod-stop:
+	@docker compose -f $(HOME)/.config/compose/ellm/compose.yml down
+	@echo "$(GREEN)=== Prod stopped ===$(RESET)"
+
+prod-start:
+	@docker compose -f $(HOME)/.config/compose/ellm/compose.yml up -d --force-recreate
+	@echo "$(GREEN)=== Prod started ===$(RESET)"
+
+dev-prod: prod-stop
+	@echo "$(CYAN)=== Dev (prod data, port 45150) [reload] ===$(RESET)"
+	@docker compose -f docker/compose.dev.yml up
+
+deploy:
+	@echo "$(CYAN)=== Building + deploying ===$(RESET)"
+	@docker build -t damvolkov/e-llm:latest .
+	@docker compose -f $(HOME)/.config/compose/ellm/compose.yml up -d --force-recreate
+	@echo "$(GREEN)=== Deployed ===$(RESET)"
 
 
 # Docker

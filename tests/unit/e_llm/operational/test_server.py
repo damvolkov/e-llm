@@ -136,18 +136,24 @@ async def test_build_command_boolean_flags(
     if field == "no_kv_offload":
         config = ServerConfig(cache=CacheSpec(**{field: value}))  # type: ignore[arg-type]
     else:
-        config = ServerConfig(compute=ComputeSpec(**{field: value}))  # type: ignore[arg-type]
+        config = ServerConfig(compute=ComputeSpec(**{field: value}))
     cmd = mgr._sm_build_command(config, sample_model_file)
     assert flag in cmd
 
 
-async def test_build_command_gpu_layers(tmp_data_dir: Path, sample_model_file: Path) -> None:
+@pytest.mark.parametrize(
+    ("n_gpu_layers", "expected"),
+    [(-1, "-1"), (0, "0"), (32, "32")],
+    ids=["all-gpu", "cpu-only", "partial"],
+)
+async def test_build_command_gpu_layers(
+    tmp_data_dir: Path, sample_model_file: Path, n_gpu_layers: int, expected: str
+) -> None:
     mgr = ServerManager(tmp_data_dir / "models")
-    config = ServerConfig(model=ModelSpec(n_gpu_layers=32))
+    config = ServerConfig(model=ModelSpec(n_gpu_layers=n_gpu_layers))
     cmd = mgr._sm_build_command(config, sample_model_file)
     assert "--n-gpu-layers" in cmd
-    idx = cmd.index("--n-gpu-layers")
-    assert cmd[idx + 1] == "32"
+    assert cmd[cmd.index("--n-gpu-layers") + 1] == expected
 
 
 async def test_build_command_chat_template(tmp_data_dir: Path, sample_model_file: Path) -> None:

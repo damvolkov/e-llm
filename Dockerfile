@@ -10,7 +10,7 @@ RUN ln -sf /usr/local/cuda/lib64/stubs/libcuda.so /usr/local/lib/libcuda.so && \
     ln -sf /usr/local/cuda/lib64/stubs/libcuda.so /usr/local/lib/libcuda.so.1 && \
     ldconfig && \
     cmake -B /llama.cpp/build -S /llama.cpp -DGGML_CUDA=ON -DCMAKE_BUILD_TYPE=Release && \
-    cmake --build /llama.cpp/build -j$(nproc) --target llama-server
+    cmake --build /llama.cpp/build -j$(nproc) --target llama-server llama-bench
 
 
 FROM nvidia/cuda:12.6.3-runtime-ubuntu24.04
@@ -20,6 +20,7 @@ ENV DEBIAN_FRONTEND=noninteractive
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
 COPY --from=llama-builder /llama.cpp/build/bin/ /usr/local/lib/llama/
 RUN ln -sf /usr/local/lib/llama/llama-server /usr/local/bin/llama-server && \
+    ln -sf /usr/local/lib/llama/llama-bench /usr/local/bin/llama-bench && \
     echo "/usr/local/lib/llama" > /etc/ld.so.conf.d/llama.conf && \
     ldconfig
 

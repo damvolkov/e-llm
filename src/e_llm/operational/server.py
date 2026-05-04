@@ -143,8 +143,7 @@ class ServerManager:
         # Optional value flags
         if config.template.chat_template:
             cmd.extend(["--chat-template", config.template.chat_template])
-        if config.model.n_gpu_layers != -1:
-            cmd.extend(["--n-gpu-layers", str(config.model.n_gpu_layers)])
+        cmd.extend(["--n-gpu-layers", str(config.model.n_gpu_layers)])
         if config.cache.defrag_thold > 0:
             cmd.extend(["--defrag-thold", str(config.cache.defrag_thold)])
 

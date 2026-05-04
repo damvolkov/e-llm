@@ -1,0 +1,26 @@
+services:
+  ellm:
+    image: damvolkov/e-llm:latest
+    container_name: ellm
+    restart: "no"
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu, compute, utility]
+    cap_add:
+      - IPC_LOCK
+    ports:
+      - "45150:80"
+    volumes:
+      - ../src:/opt/ellm/src
+      - ../assets:/opt/ellm/assets
+      - ${HOME}/.config/compose/data/ellm/models:/data/models
+      - ${HOME}/.config/compose/data/ellm/cache:/data/cache
+      - ${HOME}/.config/compose/config/ellm:/data/config
+    environment:
+      DATA_DIR: /data
+      DEBUG: "true"
+      LLAMA_ARG_REASONING: "off"

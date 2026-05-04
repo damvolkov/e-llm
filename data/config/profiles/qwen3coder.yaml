@@ -1,7 +1,7 @@
 server:
   host: 0.0.0.0
   port: 45150
-  alias: qwen3-coder-next
+  alias: ellm
 model:
   path: Qwen3-Coder-Next-UD-Q6_K_XL-00001-of-00003.gguf
   n_gpu_layers: -1

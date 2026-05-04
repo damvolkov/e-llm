@@ -65,6 +65,7 @@ class Settings(BaseSettings):
     LOGO_HEIGHT: ClassVar[int] = 160
 
     LLAMA_SERVER_BIN: ClassVar[str] = "/usr/local/bin/llama-server"
+    LLAMA_BENCH_BIN: ClassVar[str] = "/usr/local/bin/llama-bench"
     LLAMA_INTERNAL_HOST: ClassVar[str] = "127.0.0.1"
     LLAMA_INTERNAL_PORT: ClassVar[int] = 45151
     HEALTH_POLL_INTERVAL: ClassVar[float] = 3.0

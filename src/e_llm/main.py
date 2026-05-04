@@ -17,6 +17,7 @@ from e_llm.operational.downloads import DownloadManager
 from e_llm.operational.monitor import SystemMonitor
 from e_llm.operational.server import ServerManager
 from e_llm.operational.system import SystemEvaluator
+from e_llm.pages.bench import create as create_bench
 from e_llm.pages.config import create as create_config
 from e_llm.pages.test import create as create_test
 
@@ -207,6 +208,7 @@ async def index() -> None:
         ):
             ui.tab("config", icon="tune", label="Configuration")
             ui.tab("test", icon="science", label="Test")
+            ui.tab("bench", icon="speed", label="Bench")
 
     ui.separator().classes("ellm-divider")
 
@@ -218,6 +220,8 @@ async def index() -> None:
             create_config(state)
         with ui.tab_panel("test"):
             create_test(state)
+        with ui.tab_panel("bench"):
+            create_bench(state)
 
     def _sync_power_btn() -> None:
         enabled = state.controller.enabled

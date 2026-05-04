@@ -1,32 +1,32 @@
 server:
   host: 0.0.0.0
-  port: 45150
+  port: 45151
   alias: ellm
 model:
-  path: gemma-4-26B-A4B-it-UD-Q8_K_XL.gguf
+  path: gemma-4-26B-A4B-it-UD-Q4_K_XL.gguf
   n_gpu_layers: -1
 context:
   ctx_size: 131072
   parallel: 1
-  batch_size: 2048
-  ubatch_size: 512
+  batch_size: 8192
+  ubatch_size: 4096
 cache:
   type_k: q8_0
   type_v: q4_0
-  no_kv_offload: false
+  no_kv_offload: true
   defrag_thold: 0.1
 compute:
   threads: 20
-  threads_batch: 26
+  threads_batch: 32
   flash_attn: true
   fit: true
   mlock: true
   no_mmap: true
 sampling:
-  temp: 0.7
+  temp: 1.0
   top_p: 0.95
-  top_k: 40
-  min_p: 0.05
+  top_k: 64
+  min_p: 0.0
   repeat_penalty: 1.0
 template:
   jinja: true
