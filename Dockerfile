@@ -24,7 +24,7 @@ RUN ln -sf /usr/local/lib/llama/llama-server /usr/local/bin/llama-server && \
     ldconfig
 
 RUN apt-get update && \
-    apt-get install -y --no-install-recommends curl nginx && \
+    apt-get install -y --no-install-recommends curl nginx libgomp1 && \
     rm -rf /var/lib/apt/lists/* && \
     rm -f /etc/nginx/sites-enabled/default
 
