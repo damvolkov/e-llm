@@ -6,7 +6,11 @@ RUN apt-get update && \
 
 RUN git clone --depth 1 --branch b9012 https://github.com/ggml-org/llama.cpp /llama.cpp
 
-RUN cmake -B /llama.cpp/build -S /llama.cpp -DGGML_CUDA=ON -DCMAKE_BUILD_TYPE=Release && \
+RUN cmake -B /llama.cpp/build -S /llama.cpp \
+        -DGGML_CUDA=ON \
+        -DCMAKE_BUILD_TYPE=Release \
+        -DCMAKE_EXE_LINKER_FLAGS="-L/usr/local/cuda/lib64/stubs" \
+        -DCMAKE_SHARED_LINKER_FLAGS="-L/usr/local/cuda/lib64/stubs" && \
     cmake --build /llama.cpp/build -j$(nproc) --target llama-server
 
 
