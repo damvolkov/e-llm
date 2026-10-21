@@ -1,10 +1,10 @@
 <p align="center">
-  <img src="assets/logo.svg" alt="e-llm" width="220">
+  <strong>Self-contained LLM inference server</strong> — llama.cpp + NiceGUI + nginx in a single Docker container<br>
+  Configure, download, and run GGUF models (including hybrid GPU/CPU and MoE) through a clean web interface
 </p>
 
 <p align="center">
-  <strong>Self-contained LLM inference server</strong> — llama.cpp + NiceGUI + nginx in a single Docker container<br>
-  Configure, download, and run GGUF models (including hybrid GPU/CPU and MoE) through a clean web interface
+  <img src="assets/logo.svg" alt="e-llm" height="110" />
 </p>
 
 <p align="center">
