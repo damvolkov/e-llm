@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="assets/e-llm-landscape-front.svg" alt="e-llm" width="420">
+  <img src="assets/logo.svg" alt="e-llm" width="220">
 </p>
 
 <p align="center">
